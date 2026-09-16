@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { db } from '../db/index.js';
+import { transaction } from '../db/index.js';
 import { finishSyncRun, startSyncRun, upsertCard, upsertSet } from '../db/repositories.js';
 import { inferSetKind } from './classify.js';
 import { ApiTcgProvider } from './providers/apitcg.js';
@@ -39,7 +39,7 @@ export async function syncCatalog(
   try {
     const { sets, cards } = await provider.fetchAll();
 
-    const write = db().transaction(() => {
+    transaction(() => {
       for (const set of sets) {
         upsertSet({
           ...set,
@@ -59,7 +59,6 @@ export async function syncCatalog(
         upsertCard(card);
       }
     });
-    write();
 
     finishSyncRun(runId, 'success', cards.length, 0);
     return { provider: provider.name, sets: sets.length, cards: cards.length };

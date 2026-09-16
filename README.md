@@ -25,7 +25,8 @@ packages/shared  Types métier partagés entre les deux
 
 ## Démarrage rapide
 
-Il faut **Node.js 20 ou plus** (`node --version`).
+Il faut **Node.js 22.5 ou plus** (`node --version`). Rien à compiler : le projet
+n'utilise aucun module natif, donc ni Python ni Visual Studio Build Tools.
 
 ```bash
 npm install
@@ -131,8 +132,22 @@ de dernier relevé : le quota journalier des APIs est ainsi dépensé là où il
 
 ## Le backend en bref
 
-SQLite (via `better-sqlite3`), Fastify, tâches planifiées avec `node-cron`.
-Le schéma tient dans `services/api/src/db/schema.sql`.
+Fastify, tâches planifiées avec `node-cron`, et **`node:sqlite`** — le module
+SQLite intégré à Node depuis la 22.5 — pour le stockage. Le schéma tient dans
+`services/api/src/db/schema.sql`.
+
+Ce choix est délibéré : les bibliothèques SQLite natives (`better-sqlite3` et
+consorts) exigent un binaire précompilé par version de Node et par plateforme,
+et à défaut une chaîne de compilation C++ — sous Windows, Python plus les Visual
+Studio Build Tools. Le module intégré supprime ce problème : `npm install`
+n'a rien à compiler, aujourd'hui comme après une montée de version de Node.
+
+Deux particularités de `node:sqlite` à connaître avant de toucher au code :
+il refuse les valeurs `undefined` et les booléens (d'où le helper `bool()`), ainsi
+que toute clé de paramètre nommé absente de la requête — les paramètres sont donc
+construits explicitement, jamais par diffusion d'objet. Et comme il n'offre pas
+d'équivalent à `db.transaction()`, `src/db/index.ts` fournit un helper
+`transaction()` qui pilote BEGIN / COMMIT / ROLLBACK.
 
 | Route | Rôle |
 | --- | --- |
