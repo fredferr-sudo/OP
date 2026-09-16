@@ -25,6 +25,11 @@ async function main(): Promise<void> {
     console.log(
       `Catalogue (${result.provider}) : ${result.cards} cartes dans ${result.sets} produits.`,
     );
+    if (result.links > 0) {
+      console.log(
+        `Correspondances marketplace : ${result.links} · prix relevés : ${result.quotes}`,
+      );
+    }
 
     // Une bascule silencieuse serait trompeuse : sur le catalogue local, l'app
     // n'affiche qu'une douzaine de cartes de démonstration.

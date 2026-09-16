@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inferSetKind } from '../classify.ts';
-import type { CatalogCard, CatalogProvider } from '../types.ts';
+import type { CatalogCard, CatalogPayload, CatalogProvider } from '../types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +24,7 @@ function officialImageUrl(cardId: string): string {
 export class LocalProvider implements CatalogProvider {
   readonly name = 'local';
 
-  async fetchAll(): Promise<{ sets: Array<Omit<CardSet, 'cardCount'>>; cards: CatalogCard[] }> {
+  async fetchAll(): Promise<CatalogPayload> {
     const seed = JSON.parse(readFileSync(join(here, '..', 'seed.json'), 'utf8')) as SeedFile;
 
     const setsById = new Map(seed.sets.map((s) => [s.id, s]));

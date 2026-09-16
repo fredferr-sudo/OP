@@ -11,7 +11,7 @@ import {
   setIdFromCode,
   splitList,
 } from '../classify.ts';
-import type { CatalogCard, CatalogProvider } from '../types.ts';
+import type { CatalogCard, CatalogPayload, CatalogProvider } from '../types.ts';
 
 /**
  * apitcg.com — API communautaire couvrant l'intégralité du One Piece Card Game
@@ -63,7 +63,7 @@ export class ApiTcgProvider implements CatalogProvider {
     this.apiKey = apiKey;
   }
 
-  async fetchAll(): Promise<{ sets: Array<Omit<CardSet, 'cardCount'>>; cards: CatalogCard[] }> {
+  async fetchAll(): Promise<CatalogPayload> {
     const cards: CatalogCard[] = [];
     const sets = new Map<string, Omit<CardSet, 'cardCount'>>();
 

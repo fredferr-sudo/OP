@@ -81,6 +81,7 @@ autres continuent de fonctionner.
 
 | Source | Accès | Ce qu'on en tire |
 | --- | --- | --- |
+| **dotgg** | aucun — c'est la source du catalogue | prix courant Cardmarket et TCGplayer, normal et foil |
 | **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | prix bas, tendance, moyennes 1 / 7 / 30 jours, nombre d'offres |
 | **TCGplayer** | OAuth2 client credentials, portail développeur | low / mid / market / direct low |
 | **eBay** | OAuth2 client credentials, Browse API | médiane et minimum des annonces en cours |
@@ -97,12 +98,19 @@ Notes utiles avant de demander les accès :
 
 ### La correspondance carte ↔ produit
 
-Les marketplaces ne connaissent pas les identifiants Bandai. Chaque carte est donc
-rapprochée d'un produit par un score (`src/prices/matching.ts`) qui s'appuie
-d'abord sur le code imprimé (`OP01-001`), puis sur le nom et l'extension, avec une
-pénalité quand une illustration alternative risque d'être confondue avec la carte
-de base. En dessous de 0,55 de confiance, la carte n'est pas relevée plutôt que de
-produire un prix faux. Les correspondances validées sont mises en cache.
+Les marketplaces ne connaissent pas les identifiants Bandai, et c'est le point le
+plus fragile d'un suivi de prix : un mauvais rapprochement affiche un prix faux
+sans rien signaler.
+
+Deux mécanismes, dans cet ordre. La synchronisation du catalogue enregistre les
+identifiants produit **fournis par dotgg** pour Cardmarket et TCGplayer : ce sont
+des correspondances exactes, notées avec une confiance de 1, qui couvrent la
+quasi-totalité du catalogue. Pour le reste — et pour eBay, qui n'a pas de notion
+de produit — chaque carte est rapprochée par un score (`src/prices/matching.ts`)
+appuyé d'abord sur le code imprimé (`OP01-001`), puis sur le nom et l'extension,
+avec une pénalité quand une illustration alternative risque d'être confondue avec
+la carte de base. En dessous de 0,55 de confiance, la carte n'est pas relevée
+plutôt que de produire un prix faux.
 
 ### L'historique
 
@@ -173,17 +181,22 @@ d'équivalent à `db.transaction()`, `src/db/index.ts` fournit un helper
 
 ## Sources du catalogue
 
-`CATALOG_PROVIDER` choisit la source : `apitcg` (apitcg.com, clé gratuite),
-`optcg` (optcgapi.com, sans clé) ou `local` (jeu de données de démarrage embarqué,
-pratique hors ligne). Les trois alimentent le même schéma, donc changer de source
-ne change rien au reste.
+`CATALOG_PROVIDER` choisit la source : `dotgg` (défaut), `apitcg` (clé gratuite)
+ou `local` (jeu de données de démonstration embarqué, pour travailler hors ligne).
+
+**dotgg** rend les 5500+ cartes du jeu en un seul appel, sans clé. Surtout, chaque
+carte y porte déjà son identifiant produit chez Cardmarket et chez TCGplayer, avec
+leurs prix courants. C'est décisif : associer une carte à son produit est le point
+le plus fragile d'un suivi de prix, et cette source donne la correspondance exacte
+au lieu d'un rapprochement par nom. Conséquence pratique, l'app affiche des prix
+dès la première synchronisation, sans aucune clé d'API.
 
 Ce sont des APIs communautaires, sans contrat versionné : leurs adresses bougent.
-La synchronisation essaie donc plusieurs chemins, puis les sources suivantes de la
-chaîne, et termine sur le catalogue local plutôt que de laisser l'app vide — en
-disant explicitement ce qui a échoué et si le résultat n'est que la démonstration.
-`npm run api:probe` interroge chaque source et décrit ce qu'elle renvoie
-réellement : c'est l'outil à lancer quand une synchronisation se dégrade.
+La synchronisation enchaîne donc les sources et termine sur le catalogue local
+plutôt que de laisser l'app vide — en disant explicitement ce qui a échoué et si
+le résultat n'est que la démonstration. `npm run api:probe` interroge chaque
+source et décrit ce qu'elle renvoie réellement, visuels des cartes compris :
+c'est l'outil à lancer quand une synchronisation se dégrade.
 
 ## Ce qui reste à faire
 

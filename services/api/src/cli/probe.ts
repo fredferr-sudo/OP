@@ -25,17 +25,19 @@ interface Candidate {
 function candidates(): Candidate[] {
   const list: Candidate[] = [
     // dotgg sert tout le catalogue en un appel : c'est la source principale.
-    { source: 'dotgg', url: 'https://api.dotgg.gg/cgfw/getcards?game=onepiece&mode=indexed' },
-    { source: 'dotgg', url: 'https://api.dotgg.gg/cgfw/getcards?game=onepiece' },
+    { source: 'dotgg', url: config.catalog.dotggUrl },
 
-    // optcgapi expose les produits mais pas de liste globale de cartes :
-    // on cherche par quel chemin obtenir les cartes d'une extension ou d'un deck.
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/OP01/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/OP-01/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/ST01/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/ST-01/' },
+    // Les visuels viennent du site officiel Bandai, nommés d'après l'identifiant
+    // de la carte. On vérifie une carte ordinaire et une illustration alternative,
+    // dont le suffixe est sensible à la casse.
+    {
+      source: 'images',
+      url: 'https://en.onepiece-cardgame.com/images/cardlist/card/OP01-001.png',
+    },
+    {
+      source: 'images',
+      url: 'https://en.onepiece-cardgame.com/images/cardlist/card/OP01-016_p1.png',
+    },
   ];
 
   // Une URL passée en argument est sondée en plus : pratique pour vérifier une
@@ -134,6 +136,10 @@ async function probe(candidate: Candidate): Promise<void> {
     const body = await response.text();
     if (!response.ok) {
       console.log(`   début du corps : ${body.slice(0, 160).replace(/\s+/g, ' ')}\n`);
+      return;
+    }
+    if (type.startsWith('image/')) {
+      console.log(`   image servie · ${(body.length / 1024).toFixed(0)} Ko\n`);
       return;
     }
     if (!type.includes('json')) {

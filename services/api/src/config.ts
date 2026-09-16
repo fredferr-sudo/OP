@@ -29,8 +29,9 @@ export const config = {
   },
 
   catalog: {
-    provider: str('CATALOG_PROVIDER', 'apitcg') as 'apitcg' | 'optcg' | 'local',
+    provider: str('CATALOG_PROVIDER', 'dotgg') as 'dotgg' | 'apitcg' | 'local',
     apitcgKey: str('APITCG_KEY'),
+    dotggUrl: str('DOTGG_URL', 'https://api.dotgg.gg/cgfw/getcards?game=onepiece'),
   },
 
   cardmarket: {
