@@ -24,14 +24,25 @@ interface Candidate {
 
 function candidates(): Candidate[] {
   const list: Candidate[] = [
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allCards/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allCards' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/sets/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/' },
-    { source: 'optcgapi', url: 'https://optcgapi.com/api/sets/OP01/' },
+    // dotgg sert tout le catalogue en un appel : c'est la source principale.
     { source: 'dotgg', url: 'https://api.dotgg.gg/cgfw/getcards?game=onepiece&mode=indexed' },
+    { source: 'dotgg', url: 'https://api.dotgg.gg/cgfw/getcards?game=onepiece' },
+
+    // optcgapi expose les produits mais pas de liste globale de cartes :
+    // on cherche par quel chemin obtenir les cartes d'une extension ou d'un deck.
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/' },
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/OP01/' },
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allSets/OP-01/' },
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/' },
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/ST01/' },
+    { source: 'optcgapi', url: 'https://optcgapi.com/api/allDecks/ST-01/' },
   ];
+
+  // Une URL passée en argument est sondée en plus : pratique pour vérifier une
+  // adresse trouvée dans une documentation sans toucher au code.
+  for (const url of process.argv.slice(2)) {
+    if (/^https?:\/\//.test(url)) list.unshift({ source: 'argument', url });
+  }
 
   list.push({
     source: 'apitcg',
@@ -43,25 +54,53 @@ function candidates(): Candidate[] {
   return list;
 }
 
-/** Résume la forme d'une réponse JSON sans en déverser le contenu. */
+/** Tronque une valeur pour rester lisible dans un terminal. */
+function short(value: unknown, max = 60): string {
+  const text = value === null || value === undefined ? '∅' : String(value).replace(/\s+/g, ' ');
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * Décrit un enregistrement, qu'il soit un objet nommé ou une ligne colonnaire.
+ * Dans le second cas (format « indexé » de dotgg), les noms de colonnes vivent
+ * à part : c'est l'appariement colonne → valeur qui nous intéresse.
+ */
+function describeRecord(record: unknown, columns?: string[]): string {
+  if (Array.isArray(record)) {
+    return record
+      .map((value, index) => `    ${index}. ${columns?.[index] ?? '?'} = ${short(value)}`)
+      .join('\n');
+  }
+  if (record && typeof record === 'object') {
+    return Object.entries(record as Record<string, unknown>)
+      .map(([key, value]) => `    ${key} = ${short(value)}`)
+      .join('\n');
+  }
+  return `    ${short(record)}`;
+}
+
+/** Résume la forme d'une réponse JSON, avec un exemple d'enregistrement complet. */
 function describeJson(payload: unknown): string {
   if (Array.isArray(payload)) {
-    const first = payload[0];
-    const keys = first && typeof first === 'object' ? Object.keys(first as object) : [];
-    return `tableau de ${payload.length} éléments · champs du 1er : ${keys.join(', ') || '(aucun)'}`;
+    return [
+      `tableau de ${payload.length} éléments · exemple :`,
+      describeRecord(payload[0]),
+    ].join('\n');
   }
+
   if (payload && typeof payload === 'object') {
     const record = payload as Record<string, unknown>;
-    const keys = Object.keys(record);
-    const parts = [`objet · clés : ${keys.join(', ')}`];
+    const parts = [`objet · clés : ${Object.keys(record).join(', ')}`];
+
+    const columns = Array.isArray(record.names) ? (record.names as string[]) : undefined;
+    if (columns) parts.push(`  names (${columns.length}) : ${columns.join(', ')}`);
 
     // Beaucoup d'APIs enveloppent la liste dans `data`, `cards` ou `results`.
     for (const key of ['data', 'cards', 'results', 'items']) {
       const value = record[key];
       if (Array.isArray(value)) {
-        const first = value[0];
-        const inner = first && typeof first === 'object' ? Object.keys(first as object) : [];
-        parts.push(`  ${key} : ${value.length} éléments · champs : ${inner.join(', ') || '(aucun)'}`);
+        parts.push(`  ${key} : ${value.length} éléments · exemple :`);
+        parts.push(describeRecord(value[0], columns));
       }
     }
     return parts.join('\n');
