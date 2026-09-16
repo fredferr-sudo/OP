@@ -1,5 +1,5 @@
 import type { CardSet } from '@op/shared';
-import { requestJson } from '../../lib/http.js';
+import { requestJson } from '../../lib/http.ts';
 import {
   baseCode,
   inferSetKind,
@@ -9,8 +9,8 @@ import {
   parseNumber,
   setIdFromCode,
   splitList,
-} from '../classify.js';
-import type { CatalogCard, CatalogProvider } from '../types.js';
+} from '../classify.ts';
+import type { CatalogCard, CatalogProvider } from '../types.ts';
 
 /**
  * optcgapi.com — source communautaire ouverte, sans clé.

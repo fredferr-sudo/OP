@@ -1,10 +1,10 @@
 import type { Card, Marketplace, PriceQuote } from '@op/shared';
-import { config } from '../../config.js';
-import { nowIso } from '../../db/index.js';
-import type { MarketLink } from '../../db/repositories.js';
-import { requestJson } from '../../lib/http.js';
-import { searchQuery } from '../matching.js';
-import type { PriceProvider, ProductMatch } from '../types.js';
+import { config } from '../../config.ts';
+import { nowIso } from '../../db/index.ts';
+import type { MarketLink } from '../../db/repositories.ts';
+import { requestJson } from '../../lib/http.ts';
+import { searchQuery } from '../matching.ts';
+import type { PriceProvider, ProductMatch } from '../types.ts';
 
 /**
  * eBay — Browse API (annonces en cours).

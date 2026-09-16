@@ -6,11 +6,11 @@
  *   npm run api:sync -- prices --limit 50
  *   npm run api:sync -- all
  */
-import { createCatalogProvider, syncCatalog } from '../catalog/sync.js';
-import { config } from '../config.js';
-import { db } from '../db/index.js';
-import { HttpError } from '../lib/http.js';
-import { configuredProviders, syncPrices } from '../prices/sync.js';
+import { createCatalogProvider, syncCatalog } from '../catalog/sync.ts';
+import { config } from '../config.ts';
+import { db } from '../db/index.ts';
+import { HttpError } from '../lib/http.ts';
+import { configuredProviders, syncPrices } from '../prices/sync.ts';
 
 async function main(): Promise<void> {
   db();

@@ -1,11 +1,11 @@
-import { config } from '../config.js';
-import { transaction } from '../db/index.js';
-import { finishSyncRun, startSyncRun, upsertCard, upsertSet } from '../db/repositories.js';
-import { inferSetKind } from './classify.js';
-import { ApiTcgProvider } from './providers/apitcg.js';
-import { LocalProvider } from './providers/local.js';
-import { OptcgProvider } from './providers/optcg.js';
-import type { CatalogProvider } from './types.js';
+import { config } from '../config.ts';
+import { transaction } from '../db/index.ts';
+import { finishSyncRun, startSyncRun, upsertCard, upsertSet } from '../db/repositories.ts';
+import { inferSetKind } from './classify.ts';
+import { ApiTcgProvider } from './providers/apitcg.ts';
+import { LocalProvider } from './providers/local.ts';
+import { OptcgProvider } from './providers/optcg.ts';
+import type { CatalogProvider } from './types.ts';
 
 export function createCatalogProvider(): CatalogProvider {
   switch (config.catalog.provider) {

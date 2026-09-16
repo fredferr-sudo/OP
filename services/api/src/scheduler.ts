@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import { syncCatalog } from './catalog/sync.js';
-import { config } from './config.js';
-import { configuredProviders, syncPrices } from './prices/sync.js';
+import { syncCatalog } from './catalog/sync.ts';
+import { config } from './config.ts';
+import { configuredProviders, syncPrices } from './prices/sync.ts';
 
 /**
  * Tâches planifiées : c'est ce qui rend l'historique possible.

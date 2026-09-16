@@ -1,5 +1,5 @@
 import type { Card, Marketplace, PriceQuote } from '@op/shared';
-import type { MarketLink } from '../db/repositories.js';
+import type { MarketLink } from '../db/repositories.ts';
 
 export interface ProductMatch {
   externalId: string | null;

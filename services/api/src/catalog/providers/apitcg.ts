@@ -1,6 +1,6 @@
 import type { CardSet } from '@op/shared';
-import { config } from '../../config.js';
-import { requestJson } from '../../lib/http.js';
+import { config } from '../../config.ts';
+import { requestJson } from '../../lib/http.ts';
 import {
   baseCode,
   inferSetKind,
@@ -10,8 +10,8 @@ import {
   parseNumber,
   setIdFromCode,
   splitList,
-} from '../classify.js';
-import type { CatalogCard, CatalogProvider } from '../types.js';
+} from '../classify.ts';
+import type { CatalogCard, CatalogProvider } from '../types.ts';
 
 /**
  * apitcg.com — API communautaire couvrant l'intégralité du One Piece Card Game
@@ -52,12 +52,15 @@ const PAGE_SIZE = 100;
 export class ApiTcgProvider implements CatalogProvider {
   readonly name = 'apitcg';
 
-  constructor(private readonly apiKey: string = config.catalog.apitcgKey) {
+  private readonly apiKey: string;
+
+  constructor(apiKey: string = config.catalog.apitcgKey) {
     if (!apiKey) {
       throw new Error(
         'APITCG_KEY manquante. Renseigne-la dans .env, ou passe CATALOG_PROVIDER=local.',
       );
     }
+    this.apiKey = apiKey;
   }
 
   async fetchAll(): Promise<{ sets: Array<Omit<CardSet, 'cardCount'>>; cards: CatalogCard[] }> {

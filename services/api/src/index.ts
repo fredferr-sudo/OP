@@ -1,9 +1,9 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { config } from './config.js';
-import { db } from './db/index.js';
-import { registerRoutes } from './routes/index.js';
-import { startScheduler } from './scheduler.js';
+import { config } from './config.ts';
+import { db } from './db/index.ts';
+import { registerRoutes } from './routes/index.ts';
+import { startScheduler } from './scheduler.ts';
 
 async function main(): Promise<void> {
   db(); // crée le fichier et applique le schéma au démarrage

@@ -25,8 +25,9 @@ packages/shared  Types métier partagés entre les deux
 
 ## Démarrage rapide
 
-Il faut **Node.js 22.5 ou plus** (`node --version`). Rien à compiler : le projet
-n'utilise aucun module natif, donc ni Python ni Visual Studio Build Tools.
+Il faut **Node.js 22.18 ou plus** (`node --version`). Rien à compiler et aucun
+script d'installation : ni Python, ni Visual Studio Build Tools, et rien à
+autoriser dans npm.
 
 ```bash
 npm install
@@ -141,6 +142,14 @@ consorts) exigent un binaire précompilé par version de Node et par plateforme,
 et à défaut une chaîne de compilation C++ — sous Windows, Python plus les Visual
 Studio Build Tools. Le module intégré supprime ce problème : `npm install`
 n'a rien à compiler, aujourd'hui comme après une montée de version de Node.
+
+Dans le même esprit, le backend s'exécute directement avec `node src/index.ts` :
+Node sait effacer les types TypeScript depuis la 22.18, ce qui évite `tsx` et donc
+`esbuild`. Plus aucune dépendance du projet n'a de script d'installation — npm
+n'a rien à autoriser. En contrepartie, le code se limite à la syntaxe TypeScript
+effaçable (ni enum, ni namespace, ni propriété de paramètre) et importe ses
+modules avec l'extension `.ts` ; `tsconfig.json` impose les deux règles, donc
+`npm run typecheck` signale tout écart.
 
 Deux particularités de `node:sqlite` à connaître avant de toucher au code :
 il refuse les valeurs `undefined` et les booléens (d'où le helper `bool()`), ainsi

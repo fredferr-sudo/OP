@@ -2,8 +2,8 @@ import type { CardSet } from '@op/shared';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inferSetKind } from '../classify.js';
-import type { CatalogCard, CatalogProvider } from '../types.js';
+import { inferSetKind } from '../classify.ts';
+import type { CatalogCard, CatalogProvider } from '../types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

@@ -5,7 +5,7 @@ import type {
   SetKind,
 } from '@op/shared';
 import type { FastifyInstance } from 'fastify';
-import { syncCatalog } from '../catalog/sync.js';
+import { syncCatalog } from '../catalog/sync.ts';
 import {
   cardFacets,
   collectionStats,
@@ -20,8 +20,8 @@ import {
   recentSyncRuns,
   replaceCollection,
   upsertCollectionItem,
-} from '../db/repositories.js';
-import { providerStatus, syncPrices } from '../prices/sync.js';
+} from '../db/repositories.ts';
+import { providerStatus, syncPrices } from '../prices/sync.ts';
 
 function parseList(value: unknown): string[] | undefined {
   if (typeof value !== 'string' || value === '') return undefined;

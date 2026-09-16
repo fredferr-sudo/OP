@@ -29,13 +29,18 @@ export interface RequestOptions extends RequestInit {
 }
 
 export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly url: string,
-    readonly body: string,
-  ) {
+  // Champs déclarés puis affectés explicitement : les « propriétés de paramètre »
+  // de TypeScript ne sont pas du type effaçable, et Node ne sait pas les exécuter.
+  readonly status: number;
+  readonly url: string;
+  readonly body: string;
+
+  constructor(status: number, url: string, body: string) {
     super(`HTTP ${status} sur ${url}: ${body.slice(0, 300)}`);
     this.name = 'HttpError';
+    this.status = status;
+    this.url = url;
+    this.body = body;
   }
 }
 

@@ -12,7 +12,7 @@ import type {
   PriceQuote,
   SetKind,
 } from '@op/shared';
-import { bool, nowIso, run, selectAll, selectOne, transaction } from './index.js';
+import { bool, nowIso, run, selectAll, selectOne, transaction } from './index.ts';
 
 // ---------------------------------------------------------------------------
 // Lignes brutes SQLite

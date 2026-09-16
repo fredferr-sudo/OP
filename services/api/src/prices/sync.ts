@@ -1,5 +1,5 @@
 import type { Card, Marketplace } from '@op/shared';
-import { today } from '../db/index.js';
+import { today } from '../db/index.ts';
 import {
   cardsToPrice,
   finishSyncRun,
@@ -9,12 +9,12 @@ import {
   saveMarketLink,
   startSyncRun,
   type MarketLink,
-} from '../db/repositories.js';
-import { backfillFromAverages } from './backfill.js';
-import { CardmarketProvider } from './providers/cardmarket.js';
-import { EbayProvider } from './providers/ebay.js';
-import { TcgPlayerProvider } from './providers/tcgplayer.js';
-import { MIN_CONFIDENCE, type PriceProvider } from './types.js';
+} from '../db/repositories.ts';
+import { backfillFromAverages } from './backfill.ts';
+import { CardmarketProvider } from './providers/cardmarket.ts';
+import { EbayProvider } from './providers/ebay.ts';
+import { TcgPlayerProvider } from './providers/tcgplayer.ts';
+import { MIN_CONFIDENCE, type PriceProvider } from './types.ts';
 
 let providers: PriceProvider[] | null = null;
 
