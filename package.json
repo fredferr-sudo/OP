@@ -15,7 +15,8 @@
     "mobile": "npm run start -w @op/mobile",
     "typecheck": "npm run typecheck -w @op/shared && npm run typecheck -w @op/api && npm run typecheck -w @op/mobile",
     "mobile:web": "npm run web -w @op/mobile",
-    "api:probe": "npm run probe -w @op/api"
+    "api:probe": "npm run probe -w @op/api",
+    "api:stats": "npm run stats -w @op/api"
   },
   "engines": {
     "node": ">=22.18"

@@ -80,3 +80,51 @@ export function setIdFromCode(code: string): string {
   const match = /^([A-Z0-9]+)-/i.exec(code);
   return match ? match[1].toUpperCase() : 'UNKNOWN';
 }
+
+/**
+ * Normalise un identifiant de produit.
+ *
+ * La source utilise parfois un identifiant composite pour une carte présente dans
+ * deux produits (« OP15-EB04 »). Le premier code est celui du produit d'origine ;
+ * c'est lui qui doit classer la carte, sans quoi l'app invente des extensions.
+ */
+export function normalizeSetId(raw: string): string {
+  const id = raw.trim().toUpperCase();
+
+  // Composite (« OP15-EB04 ») : les deux parties portent lettres ET chiffres.
+  const composite = /^([A-Z]+\d+)-([A-Z]+\d+)$/.exec(id);
+  if (composite) return composite[1];
+
+  // Sinon le tiret n'est qu'un séparateur de présentation : « OP-01 » et « OP01 »
+  // désignent le même produit, et doivent donner la même clé — sans quoi le
+  // dictionnaire de noms anglais ne correspond jamais.
+  return id.replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Découpe un champ « CardSets » en couples produit/code.
+ *
+ * Le format est « -NOM DU PRODUIT- [CODE] », répété quand la carte figure dans
+ * plusieurs produits. Le séparateur entre entrées n'est pas documenté, donc on
+ * s'appuie uniquement sur les crochets, qui sont fiables : chaque code est
+ * précédé de son nom.
+ */
+export function parseCardSets(raw: string | null | undefined): Array<{ code: string; name: string }> {
+  if (!raw) return [];
+
+  const entries: Array<{ code: string; name: string }> = [];
+  const pattern = /([^\[\]]*)\[([^\]]+)\]/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(raw)) !== null) {
+    const name = match[1].replace(/^[\s\-,;/|]+|[\s\-,;/|]+$/g, '').trim();
+    const code = match[2].replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (code) entries.push({ code, name });
+  }
+  return entries;
+}
+
+/** Une chaîne contenant des kana ou des kanji : on préfère un nom latin quand il existe. */
+export function isJapanese(value: string): boolean {
+  return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(value);
+}

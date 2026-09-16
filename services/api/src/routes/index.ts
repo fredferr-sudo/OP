@@ -4,8 +4,9 @@ import type {
   Marketplace,
   SetKind,
 } from '@op/shared';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { syncCatalog } from '../catalog/sync.ts';
+import { isSafeCardId, loadCardImage } from '../images.ts';
 import {
   cardFacets,
   collectionStats,
@@ -22,6 +23,22 @@ import {
   upsertCollectionItem,
 } from '../db/repositories.ts';
 import { providerStatus, syncPrices } from '../prices/sync.ts';
+
+/**
+ * Remplace l'adresse d'origine des visuels par celle du relais local.
+ * Calculée depuis la requête, elle reste correcte que l'app appelle le backend
+ * par « localhost » sur un ordinateur ou par son IP locale depuis un téléphone.
+ */
+function withImageProxy<T extends { id: string; imageUrl: string | null }>(
+  cards: T[],
+  request: FastifyRequest,
+): T[] {
+  const base = `${request.protocol}://${request.host}`;
+  return cards.map((card) => ({
+    ...card,
+    imageUrl: `${base}/cards/${encodeURIComponent(card.id)}/image`,
+  }));
+}
 
 function parseList(value: unknown): string[] | undefined {
   if (typeof value !== 'string' || value === '') return undefined;
@@ -58,6 +75,25 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/facets', async () => cardFacets());
 
+  /**
+   * Visuel d'une carte, servi par le backend plutôt que par le site de l'éditeur :
+   * celui-ci refuse souvent l'affichage depuis une autre origine.
+   */
+  app.get('/cards/:id/image', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    if (!isSafeCardId(id)) return reply.code(400).send({ error: 'Identifiant invalide' });
+
+    const card = getCard(id);
+    const image = await loadCardImage(id, card?.imageUrl ?? null);
+    if (!image) return reply.code(404).send({ error: 'Aucun visuel pour cette carte' });
+
+    return reply
+      .header('content-type', image.contentType)
+      // Un visuel de carte ne change jamais.
+      .header('cache-control', 'public, max-age=31536000, immutable')
+      .send(image.body);
+  });
+
   app.get('/cards', async (request) => {
     const q = request.query as Record<string, string>;
     const query: CardQuery = {
@@ -78,7 +114,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       limit: parseNumber(q.limit),
       offset: parseNumber(q.offset),
     };
-    return queryCards(query);
+    const page = queryCards(query);
+    return { ...page, items: withImageProxy(page.items, request) };
   });
 
   app.get('/cards/:id', async (request, reply) => {
@@ -86,9 +123,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const card = getCard(id);
     if (!card) return reply.code(404).send({ error: 'Carte inconnue' });
 
+    const [proxied] = withImageProxy([card], request);
     return {
-      card,
-      variants: getCardVariants(card.code).filter((v) => v.id !== card.id),
+      card: proxied,
+      variants: withImageProxy(
+        getCardVariants(card.code).filter((v) => v.id !== card.id),
+        request,
+      ),
     };
   });
 
@@ -120,7 +161,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return {
       items,
       // Les cartes possédées sont jointes ici pour éviter N appels côté app.
-      cards: getCardsByIds([...new Set(items.map((i) => i.cardId))]),
+      cards: withImageProxy(getCardsByIds([...new Set(items.map((i) => i.cardId))]), request),
       stats: collectionStats(marketplace ?? 'cardmarket'),
     };
   });

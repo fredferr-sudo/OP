@@ -132,6 +132,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api` | Démarre le backend et ses tâches planifiées |
 | `npm run api:sync -- catalog` | Synchronise le catalogue |
 | `npm run api:probe` | Teste les sources de catalogue et décrit leurs réponses |
+| `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
 | `npm run mobile:web` | Ouvre l'app dans le navigateur |
@@ -170,6 +171,7 @@ d'équivalent à `db.transaction()`, `src/db/index.ts` fournit un helper
 | Route | Rôle |
 | --- | --- |
 | `GET /sets` | Produits, déjà regroupés par nature |
+| `GET /cards/:id/image` | Visuel de la carte, relayé et mis en cache |
 | `GET /cards` | Recherche et filtres, paginée |
 | `GET /cards/:id` | Une carte et ses illustrations alternatives |
 | `GET /cards/:id/prices?days=30` | Prix courants + historique |
@@ -178,6 +180,20 @@ d'équivalent à `db.transaction()`, `src/db/index.ts` fournit un helper
 | `PATCH /collection` | Met à jour une seule ligne |
 | `POST /sync/catalog`, `POST /sync/prices` | Synchronisation à la demande |
 | `GET /health` | État du serveur et des sources de prix configurées |
+
+## Les visuels des cartes
+
+Les images officielles sont servies par le site de l'éditeur, qui restreint
+l'affichage depuis une autre origine : un navigateur qui les demande directement
+reçoit un refus, là où un appel serveur passe. Le backend les récupère donc
+lui-même (`GET /cards/:id/image`), les met en cache dans `data/images/` et les
+sert à l'app. Conséquences utiles : une seule origine à interroger, un second
+affichage instantané, et les visuels restent disponibles hors ligne.
+
+Les réponses de l'API réécrivent `imageUrl` vers ce relais, en construisant
+l'adresse à partir de la requête reçue — elle reste donc correcte que l'app
+appelle le backend par « localhost » depuis un ordinateur ou par son IP locale
+depuis un téléphone.
 
 ## Sources du catalogue
 
@@ -190,6 +206,14 @@ leurs prix courants. C'est décisif : associer une carte à son produit est le p
 le plus fragile d'un suivi de prix, et cette source donne la correspondance exacte
 au lieu d'un rapprochement par nom. Conséquence pratique, l'app affiche des prix
 dès la première synchronisation, sans aucune clé d'API.
+
+Le nom des produits demande un peu de soin. La source nomme chaque produit dans
+la langue de la carte, et le champ correspondant liste *tous* les produits où la
+carte figure — une carte d'extension rééditée dans une collection premium
+japonaise portait donc le nom de cette collection. Le nom retenu est celui dont
+le code entre crochets correspond à l'extension de la carte, et les noms anglais
+canoniques d'optcgapi (ses deux endpoints de produits fonctionnent, contrairement
+à sa liste de cartes) l'emportent quand ils existent.
 
 Ce sont des APIs communautaires, sans contrat versionné : leurs adresses bougent.
 La synchronisation enchaîne donc les sources et termine sur le catalogue local

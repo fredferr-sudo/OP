@@ -3,11 +3,15 @@ import { config } from '../../config.ts';
 import { requestJson } from '../../lib/http.ts';
 import {
   inferSetKind,
+  isJapanese,
   normalizeCategory,
   normalizeColors,
+  normalizeSetId,
+  parseCardSets,
   parseNumber,
   splitList,
 } from '../classify.ts';
+import { fetchSetNames } from '../set-names.ts';
 import type { CatalogCard, CatalogPayload, CatalogProvider } from '../types.ts';
 
 /**
@@ -55,12 +59,18 @@ function officialImageUrl(cardId: string): string {
   return `https://en.onepiece-cardgame.com/images/cardlist/card/${cardId}.png`;
 }
 
-/** "-Memorial Collection- [EB-01]" -> "Memorial Collection" */
-function cleanSetName(raw: string | null | undefined, fallback: string): string {
-  if (!raw) return fallback;
-  const withoutCode = raw.replace(/\[[^\]]*\]/g, '');
-  const cleaned = withoutCode.replace(/^[\s-]+|[\s-]+$/g, '').trim();
-  return cleaned || fallback;
+/**
+ * Retient le meilleur nom pour un produit, parmi ceux croisés sur ses cartes.
+ *
+ * Un nom latin l'emporte sur un nom japonais : le catalogue est consulté en
+ * français, et « ROMANCE DAWN » est lisible là où « プレミアムカードコレクション »
+ * ne l'est pas. À égalité, le premier rencontré suffit.
+ */
+function betterName(current: string | undefined, candidate: string): string {
+  if (!candidate) return current ?? '';
+  if (!current) return candidate;
+  if (isJapanese(current) && !isJapanese(candidate)) return candidate;
+  return current;
 }
 
 /**
@@ -107,8 +117,12 @@ export class DotggProvider implements CatalogProvider {
       throw new Error("dotgg a répondu, mais sans aucune carte.");
     }
 
+    // Noms anglais canoniques, quand ils sont disponibles : ils priment sur tout.
+    const officialNames = await fetchSetNames();
+
     const cards: CatalogCard[] = [];
-    const sets = new Map<string, Omit<CardSet, 'cardCount'>>();
+    const setNames = new Map<string, string>();
+    const setOrder: string[] = [];
     const links: CatalogPayload['links'] = [];
     const quotes: CatalogPayload['quotes'] = [];
 
@@ -120,15 +134,24 @@ export class DotggProvider implements CatalogProvider {
       if (!id) continue;
 
       const idNormal = (raw.id_normal ?? id).trim().toUpperCase();
-      const setId = (raw.set ?? '').trim().toUpperCase() || idNormal.split('-')[0];
-      const setName = cleanSetName(raw.CardSets, setId);
+      const setId = normalizeSetId((raw.set ?? '').trim() || idNormal.split('-')[0]);
+
+      // `CardSets` liste tous les produits où la carte figure ; seul celui dont le
+      // code correspond à son extension nomme cette extension. Prendre le premier
+      // venu attribuait à OP01 le nom d'une collection premium.
+      const entry = parseCardSets(raw.CardSets).find((candidate) => candidate.code === setId);
+      const setName = entry?.name ?? setId;
+
+      if (!setNames.has(setId)) setOrder.push(setId);
+      setNames.set(setId, betterName(setNames.get(setId), setName));
 
       cards.push({
         id,
         code: idNormal,
         name: (raw.name ?? '').trim(),
         setId,
-        setName,
+        // Renseigné définitivement après la boucle, une fois tous les noms vus.
+        setName: setId,
         category: normalizeCategory(raw.cardType),
         rarity: raw.rarity?.trim() || null,
         colors: normalizeColors(raw.Color),
@@ -144,17 +167,6 @@ export class DotggProvider implements CatalogProvider {
         artVariant: artVariantOf(id, idNormal),
         language: (raw.language ?? 'en').toUpperCase() as CatalogCard['language'],
       });
-
-      if (!sets.has(setId)) {
-        sets.set(setId, {
-          id: setId,
-          name: setName,
-          kind: inferSetKind(setId, setName),
-          code: setId,
-          releaseDate: null,
-          imageUrl: null,
-        });
-      }
 
       // --- Correspondances marketplace, fournies directement par la source.
       const cardmarketId = firstId(raw.cmid);
@@ -185,7 +197,32 @@ export class DotggProvider implements CatalogProvider {
       pushQuote(quotes, id, 'tcgplayer', 'USD', price(raw.foilPrice), true);
     }
 
-    return { sets: [...sets.values()], cards, links, quotes };
+    // Résolution finale des noms : le dictionnaire anglais l'emporte, sinon le
+    // meilleur nom croisé sur les cartes du produit, sinon son code.
+    const resolved = new Map<string, string>();
+    for (const setId of setOrder) {
+      const fromDirectory = officialNames.get(setId);
+      const fromCards = setNames.get(setId);
+      resolved.set(setId, fromDirectory || fromCards || setId);
+    }
+
+    for (const card of cards) {
+      card.setName = resolved.get(card.setId) ?? card.setId;
+    }
+
+    const sets = setOrder.map((setId) => {
+      const name = resolved.get(setId) ?? setId;
+      return {
+        id: setId,
+        name,
+        kind: inferSetKind(setId, name),
+        code: setId,
+        releaseDate: null,
+        imageUrl: null,
+      };
+    });
+
+    return { sets, cards, links, quotes };
   }
 }
 

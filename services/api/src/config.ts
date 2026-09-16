@@ -32,6 +32,8 @@ export const config = {
     provider: str('CATALOG_PROVIDER', 'dotgg') as 'dotgg' | 'apitcg' | 'local',
     apitcgKey: str('APITCG_KEY'),
     dotggUrl: str('DOTGG_URL', 'https://api.dotgg.gg/cgfw/getcards?game=onepiece'),
+    // Sert uniquement de dictionnaire de noms de produits en anglais.
+    optcgBaseUrl: str('OPTCG_BASE_URL', 'https://optcgapi.com/api'),
   },
 
   cardmarket: {
