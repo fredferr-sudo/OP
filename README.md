@@ -1,0 +1,137 @@
+# OP Collection — application mobile de collection One Piece Card Game
+
+Application mobile (iOS + Android) pour consulter l'intégralité du catalogue du
+**One Piece Card Game**, tenir sa collection, et suivre les prix sur **Cardmarket**,
+**TCGplayer** et **eBay** — prix du jour et historique sur 30 jours.
+
+```
+apps/mobile      Application Expo / React Native (TypeScript)
+services/api     Backend Node : catalogue, correspondances produits, relevés de prix
+packages/shared  Types métier partagés entre les deux
+```
+
+## Ce que fait l'app
+
+- **Catalogue complet**, rangé selon le classement du jeu : extensions (OP01…),
+  decks de structure (ST01…), produits spéciaux (EB, PRB), promotions, prix de tournoi.
+- **Fiche carte** : visuel officiel, effet, déclencheur, coût / puissance / contre / vie,
+  attributs, traits, et les illustrations alternatives de la même carte.
+- **Recherche et filtres** : plein texte (nom, code, effet), couleur, type, rareté,
+  option « masquer les alt-arts ».
+- **Ma collection** : quantités par état (NM / EX / GD / PL), valeur estimée selon la
+  marketplace de ton choix, montant investi, plus-value, complétion par produit.
+  Stockée sur l'appareil, donc consultable hors ligne, et sauvegardée sur le backend.
+- **Prix** : le prix courant sur les trois marketplaces, et une courbe sur 30 jours.
+
+## Démarrage rapide
+
+```bash
+npm install
+
+# 1. Backend : remplir la base et lancer le serveur
+cp services/api/.env.example services/api/.env
+npm run api:sync -- catalog      # récupère le catalogue
+npm run api                      # http://localhost:4000
+
+# 2. Application
+npm run mobile                   # puis scanner le QR code avec Expo Go
+```
+
+Sur un téléphone physique, `localhost` désigne le téléphone, pas ton ordinateur :
+ouvre l'onglet **Réglages** de l'app et saisis l'adresse IP locale de ta machine
+(`http://192.168.x.x:4000`). L'app la devine automatiquement quand elle est lancée
+depuis Expo Go sur le même réseau.
+
+Sans aucune clé d'API, tout fonctionne déjà : le catalogue vient d'une source
+communautaire ouverte, seuls les prix restent vides.
+
+## Les prix : comment ça marche
+
+### Les sources
+
+Les trois marketplaces sont interrogées via **leurs APIs officielles**, chacune
+derrière un connecteur indépendant (`services/api/src/prices/providers/`).
+Une source dont les clés ne sont pas renseignées est simplement ignorée ; les
+autres continuent de fonctionner.
+
+| Source | Accès | Ce qu'on en tire |
+| --- | --- | --- |
+| **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | prix bas, tendance, moyennes 1 / 7 / 30 jours, nombre d'offres |
+| **TCGplayer** | OAuth2 client credentials, portail développeur | low / mid / market / direct low |
+| **eBay** | OAuth2 client credentials, Browse API | médiane et minimum des annonces en cours |
+
+Notes utiles avant de demander les accès :
+
+- **TCGplayer** a fermé les inscriptions publiques à son API ; l'accès passe
+  aujourd'hui par leur programme partenaire.
+- **eBay** Browse API donne les **annonces en cours**. Les **ventes conclues**
+  relèvent de l'API *Marketplace Insights*, soumise à approbation ; le connecteur
+  est prêt à basculer dessus le jour où tu l'obtiens.
+- Aucun scraping : les trois connecteurs n'appellent que des APIs publiques
+  documentées, ce qui les rend stables et conformes aux conditions d'utilisation.
+
+### La correspondance carte ↔ produit
+
+Les marketplaces ne connaissent pas les identifiants Bandai. Chaque carte est donc
+rapprochée d'un produit par un score (`src/prices/matching.ts`) qui s'appuie
+d'abord sur le code imprimé (`OP01-001`), puis sur le nom et l'extension, avec une
+pénalité quand une illustration alternative risque d'être confondue avec la carte
+de base. En dessous de 0,55 de confiance, la carte n'est pas relevée plutôt que de
+produire un prix faux. Les correspondances validées sont mises en cache.
+
+### L'historique
+
+Un relevé par jour et par marketplace est écrit en base (`price_snapshots`), par une
+tâche planifiée (`PRICE_CRON`, 4h15 par défaut). Au bout d'un mois, l'historique
+30 jours est entièrement constitué de mesures réelles.
+
+Pour ne pas afficher un graphique vide le premier jour, le premier relevé
+Cardmarket sert à **reconstruire** le mois écoulé à partir des moyennes glissantes
+AVG1 / AVG7 / AVG30 (`src/prices/backfill.ts`) : elles contraignent trois segments
+successifs, qu'on interpole puis recale pour que la courbe redonne exactement ces
+trois moyennes. Ces points sont marqués comme estimés, grisés dans l'app, et
+remplacés par les vraies mesures au fil des jours.
+
+## Commandes
+
+| Commande | Effet |
+| --- | --- |
+| `npm run api` | Démarre le backend et ses tâches planifiées |
+| `npm run api:sync -- catalog` | Synchronise le catalogue |
+| `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
+| `npm run mobile` | Démarre le bundler Expo |
+| `npm run typecheck` | Vérifie les trois paquets |
+
+Les cartes de ta collection sont relevées en priorité, puis les autres par ancienneté
+de dernier relevé : le quota journalier des APIs est ainsi dépensé là où il sert.
+
+## Le backend en bref
+
+SQLite (via `better-sqlite3`), Fastify, tâches planifiées avec `node-cron`.
+Le schéma tient dans `services/api/src/db/schema.sql`.
+
+| Route | Rôle |
+| --- | --- |
+| `GET /sets` | Produits, déjà regroupés par nature |
+| `GET /cards` | Recherche et filtres, paginée |
+| `GET /cards/:id` | Une carte et ses illustrations alternatives |
+| `GET /cards/:id/prices?days=30` | Prix courants + historique |
+| `GET /collection` | Collection sauvegardée, cartes jointes, statistiques |
+| `PUT /collection` | Remplace la sauvegarde par la collection de l'appareil |
+| `PATCH /collection` | Met à jour une seule ligne |
+| `POST /sync/catalog`, `POST /sync/prices` | Synchronisation à la demande |
+| `GET /health` | État du serveur et des sources de prix configurées |
+
+## Sources du catalogue
+
+`CATALOG_PROVIDER` choisit la source : `apitcg` (apitcg.com, clé gratuite),
+`optcg` (optcgapi.com, sans clé, utilisé par défaut) ou `local` (jeu de données de
+démarrage embarqué, pratique hors ligne). Les trois alimentent le même schéma, donc
+changer de source ne change rien au reste.
+
+## Ce qui reste à faire
+
+- Scanner une carte par l'appareil photo pour l'ajouter à la collection.
+- Alertes de prix (« préviens-moi si cette carte passe sous X € »).
+- Constructeur de deck avec contrôle de légalité.
+- Ventes conclues eBay, dès l'obtention de l'accès Marketplace Insights.
