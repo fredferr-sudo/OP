@@ -25,6 +25,19 @@ async function main(): Promise<void> {
     console.log(
       `Catalogue (${result.provider}) : ${result.cards} cartes dans ${result.sets} produits.`,
     );
+
+    // Une bascule silencieuse serait trompeuse : sur le catalogue local, l'app
+    // n'affiche qu'une douzaine de cartes de démonstration.
+    if (result.failures) {
+      console.log('\nSources écartées en chemin :');
+      for (const failure of result.failures) console.log(`  • ${failure}`);
+      if (result.provider === 'local') {
+        console.log(
+          "\nATTENTION : c'est le catalogue de démonstration embarqué, pas le jeu complet.\n" +
+            'Lance `npm run api:probe` pour voir ce que répondent les sources distantes.',
+        );
+      }
+    }
   }
 
   if (command === 'prices' || command === 'all') {

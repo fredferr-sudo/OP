@@ -123,6 +123,7 @@ remplacés par les vraies mesures au fil des jours.
 | --- | --- |
 | `npm run api` | Démarre le backend et ses tâches planifiées |
 | `npm run api:sync -- catalog` | Synchronise le catalogue |
+| `npm run api:probe` | Teste les sources de catalogue et décrit leurs réponses |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
 | `npm run mobile:web` | Ouvre l'app dans le navigateur |
@@ -173,9 +174,16 @@ d'équivalent à `db.transaction()`, `src/db/index.ts` fournit un helper
 ## Sources du catalogue
 
 `CATALOG_PROVIDER` choisit la source : `apitcg` (apitcg.com, clé gratuite),
-`optcg` (optcgapi.com, sans clé, utilisé par défaut) ou `local` (jeu de données de
-démarrage embarqué, pratique hors ligne). Les trois alimentent le même schéma, donc
-changer de source ne change rien au reste.
+`optcg` (optcgapi.com, sans clé) ou `local` (jeu de données de démarrage embarqué,
+pratique hors ligne). Les trois alimentent le même schéma, donc changer de source
+ne change rien au reste.
+
+Ce sont des APIs communautaires, sans contrat versionné : leurs adresses bougent.
+La synchronisation essaie donc plusieurs chemins, puis les sources suivantes de la
+chaîne, et termine sur le catalogue local plutôt que de laisser l'app vide — en
+disant explicitement ce qui a échoué et si le résultat n'est que la démonstration.
+`npm run api:probe` interroge chaque source et décrit ce qu'elle renvoie
+réellement : c'est l'outil à lancer quand une synchronisation se dégrade.
 
 ## Ce qui reste à faire
 
