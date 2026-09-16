@@ -25,17 +25,25 @@ packages/shared  Types métier partagés entre les deux
 
 ## Démarrage rapide
 
+Il faut **Node.js 20 ou plus** (`node --version`).
+
 ```bash
 npm install
 
 # 1. Backend : remplir la base et lancer le serveur
 cp services/api/.env.example services/api/.env
 npm run api:sync -- catalog      # récupère le catalogue
-npm run api                      # http://localhost:4000
+npm run api                      # http://localhost:4000, à laisser tourner
 
-# 2. Application
+# 2. Application, dans un second terminal
 npm run mobile                   # puis scanner le QR code avec Expo Go
 ```
+
+Sous Windows (invite de commandes), la copie du fichier d'environnement s'écrit
+`copy services\api\.env.example services\api\.env` ; tout le reste est identique.
+
+Le backend doit tourner pendant que l'app est ouverte : c'est lui qui sert le
+catalogue et les prix. Sans lui, l'app affiche « Backend injoignable ».
 
 Sur un téléphone physique, `localhost` désigne le téléphone, pas ton ordinateur :
 ouvre l'onglet **Réglages** de l'app et saisis l'adresse IP locale de ta machine

@@ -1,13 +1,15 @@
 /**
  * Synchronisation en ligne de commande.
  *
- *   npm run sync -w @op/api -- catalog        # catalogue complet
- *   npm run sync -w @op/api -- prices         # relevé de prix (500 cartes)
- *   npm run sync -w @op/api -- prices --limit 50
- *   npm run sync -w @op/api -- all
+ *   npm run api:sync -- catalog        # catalogue complet
+ *   npm run api:sync -- prices         # relevé de prix (500 cartes)
+ *   npm run api:sync -- prices --limit 50
+ *   npm run api:sync -- all
  */
-import { syncCatalog } from '../catalog/sync.js';
+import { createCatalogProvider, syncCatalog } from '../catalog/sync.js';
+import { config } from '../config.js';
 import { db } from '../db/index.js';
+import { HttpError } from '../lib/http.js';
 import { configuredProviders, syncPrices } from '../prices/sync.js';
 
 async function main(): Promise<void> {
@@ -42,9 +44,47 @@ async function main(): Promise<void> {
   }
 }
 
+/**
+ * Un échec de synchronisation est presque toujours un problème d'accès réseau ou
+ * de clé manquante, pas un bug. On explique ce qui s'est passé et ce qu'on peut
+ * faire, plutôt que d'afficher une trace d'appels.
+ */
+function explain(error: unknown): string {
+  const lines: string[] = [];
+
+  if (error instanceof HttpError) {
+    lines.push(`La source a répondu ${error.status} sur ${error.url}.`);
+  } else if (error instanceof Error && /fetch failed|ENOTFOUND|ECONNREFUSED|abort/i.test(error.message)) {
+    lines.push('La source du catalogue est injoignable depuis cette machine.');
+  } else {
+    lines.push(error instanceof Error ? error.message : String(error));
+  }
+
+  // On affiche la source réellement utilisée : `apitcg` sans clé se replie
+  // silencieusement sur `optcg`, et annoncer `apitcg` induirait en erreur.
+  const effective = createCatalogProvider().name;
+  const configured = config.catalog.provider;
+  lines.push('');
+  lines.push(
+    effective === configured
+      ? `Source utilisée : ${effective}`
+      : `Source utilisée : ${effective} (CATALOG_PROVIDER=${configured}, sans clé API : repli automatique)`,
+  );
+  lines.push('');
+  lines.push('Pistes :');
+  lines.push('  • Vérifie ta connexion, puis relance la commande.');
+  lines.push(
+    "  • Pour démarrer sans réseau, mets CATALOG_PROVIDER=local dans services/api/.env :",
+  );
+  lines.push("    l'app tournera sur un petit catalogue de démonstration embarqué.");
+  lines.push('  • Avec une clé apitcg.com : CATALOG_PROVIDER=apitcg et APITCG_KEY=…');
+
+  return lines.join('\n');
+}
+
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error(`\nÉchec de la synchronisation.\n\n${explain(error)}\n`);
     process.exit(1);
   });
