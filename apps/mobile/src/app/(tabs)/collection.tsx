@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Card as Panel, EmptyState, Loading, SectionTitle } from '@/components/ui';
-import { CARD_ASPECT_RATIO, Radius, Spacing } from '@/constants/theme';
+import { CARD_ASPECT_RATIO, MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchServerCollection, pushCollection } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
@@ -233,6 +233,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl * 2,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
   },
   tabs: {
     flexDirection: 'row',

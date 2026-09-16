@@ -67,3 +67,13 @@ export const Radius = {
 
 /** Ratio officiel des cartes One Piece (63 x 88 mm). */
 export const CARD_ASPECT_RATIO = 63 / 88;
+
+/**
+ * Largeur maximale du contenu. L'app est pensée pour un téléphone ; ouverte dans
+ * un navigateur de bureau, sans cette limite, les lignes s'étireraient sur toute
+ * la fenêtre et deviendraient illisibles.
+ */
+export const MAX_CONTENT_WIDTH = 760;
+
+/** Largeur visée pour une vignette de carte : elle détermine le nombre de colonnes. */
+export const TILE_TARGET_WIDTH = 116;

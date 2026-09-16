@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, Card as Panel, SectionTitle } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchHealth, getBaseUrl, invalidateBaseUrl } from '@/lib/api';
 import { setSetting } from '@/lib/storage';
@@ -123,6 +123,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl * 2,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
   },
   label: {
     fontSize: 13,

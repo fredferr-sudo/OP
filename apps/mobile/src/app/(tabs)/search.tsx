@@ -9,7 +9,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { CardGrid } from '@/components/card-grid';
-import { Radius, Spacing } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchFacets } from '@/lib/api';
 
@@ -58,7 +58,7 @@ export default function SearchScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <View style={[styles.searchBar, { borderColor: theme.border }]}>
+      <View style={[styles.searchBar, styles.searchBarInner, { borderColor: theme.border }]}>
         <TextInput
           value={search}
           onChangeText={setSearch}
@@ -176,6 +176,11 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchBarInner: {
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
   },
   input: {
     borderRadius: Radius.sm,

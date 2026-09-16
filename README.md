@@ -42,6 +42,21 @@ ouvre l'onglet **Réglages** de l'app et saisis l'adresse IP locale de ta machin
 (`http://192.168.x.x:4000`). L'app la devine automatiquement quand elle est lancée
 depuis Expo Go sur le même réseau.
 
+### Tester sur ordinateur
+
+```bash
+npm run mobile:web     # ouvre l'app dans le navigateur, sur http://localhost:8081
+```
+
+L'app tourne alors entièrement dans le navigateur, collection locale comprise
+(`expo-sqlite` passe par WebAssembly). La mise en page s'adapte : la grille affiche
+plus de colonnes en fenêtre large, et le contenu reste borné pour rester lisible.
+Le navigateur utilise sa propre base locale : la collection y est distincte de celle
+du téléphone, mais les deux se sauvegardent sur le même backend.
+
+Les autres cibles depuis le même bundler : `npm run mobile` puis `a` pour un
+émulateur Android, `i` pour un simulateur iOS (macOS uniquement).
+
 Sans aucune clé d'API, tout fonctionne déjà : le catalogue vient d'une source
 communautaire ouverte, seuls les prix restent vides.
 
@@ -100,6 +115,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:sync -- catalog` | Synchronise le catalogue |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
+| `npm run mobile:web` | Ouvre l'app dans le navigateur |
 | `npm run typecheck` | Vérifie les trois paquets |
 
 Les cartes de ta collection sont relevées en priorité, puis les autres par ancienneté

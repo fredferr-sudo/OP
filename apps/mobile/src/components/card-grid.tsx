@@ -4,14 +4,13 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Spacing } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH, Spacing, TILE_TARGET_WIDTH } from '@/constants/theme';
 import { fetchCards } from '@/lib/api';
 import { ownedCounts } from '@/lib/storage';
 import { CardTile } from './card-tile';
 import { EmptyState, ErrorState, Loading } from './ui';
 
 const PAGE_SIZE = 60;
-const COLUMNS = 3;
 
 interface Props {
   query: CardQuery;
@@ -59,7 +58,11 @@ export function CardGrid({ query, header, emptyTitle, emptyDescription }: Props)
   const cards: Card[] = data?.pages.flatMap((page) => page.items) ?? [];
 
   const gutter = Spacing.lg;
-  const tileWidth = (width - gutter * 2 - Spacing.sm * (COLUMNS - 1)) / COLUMNS;
+  // Le nombre de colonnes suit la largeur disponible : 3 sur un téléphone,
+  // davantage dans un navigateur de bureau, plutôt que d'étirer les vignettes.
+  const available = Math.min(width, MAX_CONTENT_WIDTH) - gutter * 2;
+  const columns = Math.max(3, Math.min(8, Math.floor(available / TILE_TARGET_WIDTH)));
+  const tileWidth = (available - Spacing.sm * (columns - 1)) / columns;
 
   const renderItem = useCallback(
     ({ item }: { item: Card }) => (
@@ -74,12 +77,15 @@ export function CardGrid({ query, header, emptyTitle, emptyDescription }: Props)
   return (
     <FlatList
       data={cards}
+      // FlatList exige une nouvelle clé quand numColumns change (rotation, fenêtre redimensionnée).
+      key={columns}
       keyExtractor={(item) => item.id}
-      numColumns={COLUMNS}
+      numColumns={columns}
       renderItem={renderItem}
       ListHeaderComponent={header}
       columnWrapperStyle={styles.row}
       contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
+      style={styles.list}
       onEndReached={() => {
         if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
       }}
@@ -96,6 +102,11 @@ export function CardGrid({ query, header, emptyTitle, emptyDescription }: Props)
 }
 
 const styles = StyleSheet.create({
+  list: {
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+  },
   content: {
     paddingTop: Spacing.md,
     gap: Spacing.lg,

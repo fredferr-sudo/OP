@@ -1,4 +1,3 @@
 /// <reference types="expo/types" />
 
-// Normalement généré par Expo au démarrage du bundler ; versionné ici pour que
-// `npm run typecheck` fonctionne sur un dépôt fraîchement cloné.
+// NOTE: This file should not be edited and should be in your git ignore

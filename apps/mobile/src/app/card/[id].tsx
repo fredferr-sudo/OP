@@ -21,7 +21,7 @@ import {
 import { PriceChart } from '@/components/price-chart';
 import { QuantityStepper } from '@/components/quantity-stepper';
 import { Badge, Card as Panel, ColorDots, ErrorState, Loading, SectionTitle } from '@/components/ui';
-import { CARD_ASPECT_RATIO, Radius, Spacing } from '@/constants/theme';
+import { CARD_ASPECT_RATIO, MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchCard, fetchPrices } from '@/lib/api';
 import { formatPrice, formatTrend } from '@/lib/format';
@@ -75,7 +75,8 @@ export default function CardScreen() {
 
   const card = cardQuery.data!.card;
   const variants = cardQuery.data!.variants;
-  const imageWidth = Math.min(width - Spacing.lg * 2, 320);
+  const contentWidth = Math.min(width, MAX_CONTENT_WIDTH) - Spacing.lg * 2;
+  const imageWidth = Math.min(contentWidth, 320);
 
   async function setQuantity(condition: CardCondition, next: number): Promise<void> {
     const delta = next - quantities[condition];
@@ -144,7 +145,7 @@ export default function CardScreen() {
       {/* ------------------------------------------------------------------ */}
       <SectionTitle>Historique (30 jours)</SectionTitle>
       {priceQuery.data ? (
-        <PriceChart history={priceQuery.data.history} width={width - Spacing.lg * 2} />
+        <PriceChart history={priceQuery.data.history} width={contentWidth} />
       ) : (
         <Loading />
       )}
@@ -286,6 +287,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl * 2,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
   },
   image: {
     alignSelf: 'center',

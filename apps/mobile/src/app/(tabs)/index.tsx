@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorState, Loading } from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchSets, type SetGroup } from '@/lib/api';
 
@@ -132,6 +132,9 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.md,
     paddingBottom: Spacing.xxl,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
   },
   group: {
     gap: Spacing.sm,
