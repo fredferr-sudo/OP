@@ -21,7 +21,7 @@ async function main(): Promise<void> {
   const limit = limitIndex >= 0 ? Number(args[limitIndex + 1]) : undefined;
 
   if (command === 'catalog' || command === 'all') {
-    const result = await syncCatalog();
+    const result = await syncCatalog({ onProgress: (step) => console.log(step) });
     console.log(
       `Catalogue (${result.provider}) : ${result.cards} cartes dans ${result.sets} produits.`,
     );

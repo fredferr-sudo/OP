@@ -68,7 +68,18 @@ export interface CatalogSyncResult {
  * Récupère le catalogue complet chez le fournisseur et le fusionne en base.
  * L'opération est idempotente : on peut la relancer autant qu'on veut.
  */
-export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSyncResult> {
+export interface CatalogSyncOptions {
+  provider?: CatalogProvider;
+  /**
+   * Appelé à chaque étape. La première synchronisation télécharge plusieurs
+   * dizaines de mégaoctets : sans rien afficher, la commande paraît figée et
+   * on l'interrompt au milieu.
+   */
+  onProgress?: (message: string) => void;
+}
+
+export async function syncCatalog(options: CatalogSyncOptions = {}): Promise<CatalogSyncResult> {
+  const { provider, onProgress = () => {} } = options;
   const chain = provider ? [provider] : providerChain();
   const runId = startSyncRun('catalog', chain.map((p) => p.name).join(' > '));
 
@@ -80,6 +91,7 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
 
     for (const source of chain) {
       try {
+        onProgress(`Catalogue global : interrogation de ${source.name}…`);
         payload = await source.fetchAll();
         used = source;
         break;
@@ -117,6 +129,11 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
 
     if (punkRecordsEnabled()) {
       try {
+        const languages = extraLanguages().join(', ');
+        onProgress(
+          `Éditions ${languages} : mise à jour de la copie locale des listes Bandai ` +
+            "(~48 Mo au premier passage, quelques secondes ensuite)…",
+        );
         const extra = await fetchPunkRecords();
         // Les produits régionaux sont créés à part : ils ne doivent compléter la
         // liste que lorsqu'ils y manquent, jamais renommer ceux qui y sont.
@@ -130,6 +147,8 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
         }`;
       }
     }
+
+    onProgress(`Écriture en base : ${cards.length} cartes…`);
 
     transaction(() => {
       for (const set of sets) {
