@@ -166,6 +166,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:probe -- card OP01-001` | Affiche les enregistrements bruts d'une carte et de ses illustrations |
 | `npm run api:analyse` | Analyse le classement des cartes par produit sur tout le catalogue |
 | `npm run api:find -- grevin` | Cherche une carte dans le catalogue synchronisé |
+| `npm run api:gap` | Compare le catalogue aux listes officielles Bandai, dans les deux sens |
 | `npm run api:discover` | Détecte les cartes absentes en confrontant le catalogue à Cardmarket |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
@@ -259,6 +260,22 @@ at this time »). Le connecteur est prêt pour le jour où elles rouvriront.
 
 Quand aucune source ne connaît une carte, il reste la saisie dans le complément :
 c'est le cas des exclusivités les plus confidentielles.
+
+### Savoir ce qui manque vraiment
+
+« Quelle carte me manque ? » n'a de sens que face à une référence, et depuis que
+les listes officielles de Bandai sont là, il y en a une. `npm run api:gap` place
+le catalogue en regard, dans les deux sens :
+
+- **ce que la source commerciale ignore** est une lacune de l'app — la carte
+  existe, elle ne s'affiche nulle part ;
+- **ce qu'elle ajoute** n'est publié par aucune liste officielle : prix de
+  tournoi, promos d'événement. C'est le seul terrain où une source
+  supplémentaire apporterait quelque chose, et donc le seul endroit où il vaut
+  la peine d'aller en chercher une.
+
+À lancer avant d'ajouter un catalogue tiers : le rapport dit s'il y a quoi que
+ce soit à y gagner, et combien.
 
 ## Sources du catalogue
 

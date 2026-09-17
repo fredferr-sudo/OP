@@ -19,6 +19,7 @@
     "api:stats": "npm run stats -w @op/api",
     "api:analyse": "npm run analyse -w @op/api",
     "api:find": "npm run find -w @op/api",
+    "api:gap": "npm run gap -w @op/api",
     "api:discover": "npm run discover -w @op/api"
   },
   "engines": {

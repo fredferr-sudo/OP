@@ -81,8 +81,15 @@ interface RawPack {
 }
 
 /**
- * Les titres du dépôt sont échappés deux fois (« L&amp;apos;ÉCLAIR »), reliquat
- * du HTML d'origine. Une seule passe laisserait « L&apos;ÉCLAIR » à l'écran.
+ * Le dépôt conserve les entités HTML de la source, et les échappe deux fois
+ * (« L&amp;apos;ÉCLAIR ») : une seule passe laisserait « L&apos;ÉCLAIR » à
+ * l'écran. Elles ne touchent pas que les titres de produits — « Shachi &amp;
+ * Penguin », « キッド&amp;キラー », et surtout les 77 cartes françaises dont la
+ * ponctuation double porte l'espace insécable de la typographie française.
+ *
+ * Cette espace est rendue par le caractère insécable lui-même, et non par une
+ * espace ordinaire : c'est ce qui empêche « Un souci ? » de se couper avant le
+ * point d'interrogation en bout de ligne.
  */
 function decodeEntities(value: string): string {
   const once = (text: string) =>
@@ -92,7 +99,7 @@ function decodeEntities(value: string): string {
       .replace(/&quot;/g, '"')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .replace(/&nbsp;/g, ' ');
+      .replace(/&nbsp;/g, '\u00a0');
   return once(once(value)).trim();
 }
 
@@ -121,12 +128,16 @@ export function punkRecordsEnabled(): boolean {
  * produits le sont, parce qu'ils servent à nommer les produits japonais (voir
  * `borrowedPackTitles`).
  */
-async function ensureCheckout(languages: CardLanguage[]): Promise<string> {
+async function ensureCheckout(
+  languages: CardLanguage[],
+  extraPatterns: string[] = [],
+): Promise<string> {
   const dir = config.catalog.punkRecordsDir;
   const patterns = [
     ...languages.map((language) => `${LANGUAGE_DIRS[language]}/`),
     'english/packs.json',
     'english/index/',
+    ...extraPatterns,
   ];
 
   const git = (...args: string[]) => run('git', args, { cwd: dir, maxBuffer: 64 * 1024 * 1024 });
@@ -258,6 +269,54 @@ function englishTitleFor(packId: string, englishPacks: Record<string, RawPack>):
   return null;
 }
 
+/** Une entrée de la liste officielle, telle que l'index du dépôt la décrit. */
+export interface OfficialEntry {
+  name: string;
+  rarity: string | null;
+  pack_id: string;
+}
+
+/**
+ * Liste officielle Bandai d'une édition, sans télécharger ses cartes.
+ *
+ * L'index tient en un fichier d'un mégaoctet et suffit à répondre à la seule
+ * question qui compte ici : cette carte existe-t-elle ? C'est la référence face
+ * à laquelle mesurer ce qu'une source commerciale ignore — ou invente.
+ */
+export async function officialIndex(
+  language: CardLanguage,
+): Promise<Record<string, OfficialEntry>> {
+  const directory = LANGUAGE_DIRS[language];
+  if (!directory) throw new Error(`Édition inconnue : ${language}`);
+
+  // Les éditions configurées restent du voyage : restreindre la copie au seul
+  // index effacerait les cartes déjà téléchargées, que la synchronisation
+  // suivante devrait remettre en place.
+  const dir = await ensureCheckout(extraLanguages(), [`${directory}/index/cards_by_id.json`]);
+  const path = join(dir, directory, 'index/cards_by_id.json');
+  if (!existsSync(path)) throw new Error(`Liste officielle absente pour ${language}`);
+
+  const raw = readJson<Record<string, Record<string, unknown>>>(path);
+  // L'édition japonaise livre un index vide, comme sa liste de produits. Le
+  // traiter comme une liste officielle ferait conclure que ses 4987 cartes sont
+  // toutes hors-liste, ce qui est exactement l'inverse de la vérité.
+  if (Object.keys(raw).length === 0) {
+    throw new Error(
+      `la source publie une liste vide pour ${language} (défaut connu de l'édition japonaise)`,
+    );
+  }
+
+  const result: Record<string, OfficialEntry> = {};
+  for (const [id, entry] of Object.entries(raw)) {
+    result[id.toUpperCase()] = {
+      name: decodeEntities(String(entry.name ?? '')),
+      rarity: entry.rarity ? (RARITIES[String(entry.rarity)] ?? String(entry.rarity)) : null,
+      pack_id: String(entry.pack_id ?? ''),
+    };
+  }
+  return result;
+}
+
 export interface PunkRecordsPayload extends CatalogPayload {
   /** Nom du produit dans chaque édition, quand Bandai le traduit. */
   setNames: Array<{ setId: string; language: CardLanguage; name: string }>;
@@ -316,7 +375,7 @@ export async function fetchPunkRecords(): Promise<PunkRecordsPayload> {
           // carte japonaise du même numéro s'écraseraient l'une l'autre.
           id: printingId(raw.id, language),
           code: raw.id.replace(/_p\d+$/i, '').toUpperCase(),
-          name: raw.name,
+          name: decodeEntities(raw.name),
           setId,
           setName,
           category: normalizeCategory(raw.category),
@@ -330,9 +389,9 @@ export async function fetchPunkRecords(): Promise<PunkRecordsPayload> {
           counter: parseNumber(raw.counter),
           life: leader ? (raw.cost ?? null) : null,
           attributes: raw.attributes ?? [],
-          types: raw.types ?? [],
-          effect: raw.effect || null,
-          trigger: raw.trigger || null,
+          types: (raw.types ?? []).map(decodeEntities),
+          effect: raw.effect ? decodeEntities(raw.effect) : null,
+          trigger: raw.trigger ? decodeEntities(raw.trigger) : null,
           // L'adresse porte un paramètre de cache propre à la source ; on le
           // garde, le site refusant parfois de servir l'image sans lui.
           imageUrl: raw.img_full_url,

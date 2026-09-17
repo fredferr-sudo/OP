@@ -12,6 +12,7 @@
     "stats": "node --disable-warning=ExperimentalWarning src/cli/stats.ts",
     "analyse": "node --disable-warning=ExperimentalWarning src/cli/analyse.ts",
     "find": "node --disable-warning=ExperimentalWarning src/cli/find.ts",
+    "gap": "node --disable-warning=ExperimentalWarning src/cli/gap.ts",
     "discover": "node --disable-warning=ExperimentalWarning src/cli/discover.ts"
   },
   "dependencies": {
