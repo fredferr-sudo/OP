@@ -39,9 +39,18 @@ function main(): void {
 
   const columns =
     'c.id, c.name, c.rarity, c.language, s.name AS set_name, s.id AS set_id';
-  const literal =
-    'c.id LIKE @like COLLATE NOCASE OR c.name LIKE @like COLLATE NOCASE' +
-    ' OR c.rarity = @exact COLLATE NOCASE OR s.name LIKE @like COLLATE NOCASE';
+  // La rareté se compare exactement : un sigle court comme « TR » se retrouve
+  // dans « STRAW HAT » ou « STARTER », et noyait la réponse sous des dizaines de
+  // cartes sans rapport. Le nom d'extension n'est comparé qu'au-delà de trois
+  // caractères, pour la même raison — « Memorial » reste utile, « TR » non.
+  const literal = [
+    'c.id LIKE @like COLLATE NOCASE',
+    'c.name LIKE @like COLLATE NOCASE',
+    'c.rarity = @exact COLLATE NOCASE',
+    term.length > 3 ? 's.name LIKE @like COLLATE NOCASE' : null,
+  ]
+    .filter(Boolean)
+    .join(' OR ');
 
   const search = (withFts: boolean): Hit[] =>
     selectAll<Hit>(
@@ -50,7 +59,9 @@ function main(): void {
        WHERE ${withFts ? 'c.id IN (SELECT id FROM cards_fts WHERE cards_fts MATCH @fts) OR ' : ''}${literal}
        ORDER BY c.id
        LIMIT 60`,
-      { fts, like, exact: term },
+      // Les paramètres suivent exactement la requête : node:sqlite rejette une
+      // clé nommée qui n'y figure pas, ce qui faisait échouer le repli lui-même.
+      withFts ? { fts, like, exact: term } : { like, exact: term },
     );
 
   // Un terme que la syntaxe plein texte refuse ne doit pas faire échouer la
@@ -62,7 +73,15 @@ function main(): void {
     hits = search(false);
   }
 
-  console.log(`\n« ${term} » — ${hits.length} résultat(s)${hits.length === 60 ? ' (tronqué)' : ''}\n`);
+  const asRarity = selectAll<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM cards WHERE rarity = @exact COLLATE NOCASE',
+    { exact: term },
+  )[0]?.n ?? 0;
+
+  console.log(
+    `\n« ${term} » — ${hits.length} résultat(s)${hits.length === 60 ? ' (tronqué)' : ''}` +
+      `${asRarity > 0 ? ` · dont ${asRarity} de rareté ${term.toUpperCase()}` : ''}\n`,
+  );
   for (const hit of hits) {
     console.log(
       `  ${hit.id.padEnd(16)} ${String(hit.rarity ?? '—').padEnd(5)} ${hit.language.padEnd(4)} ` +
@@ -70,12 +89,29 @@ function main(): void {
     );
   }
 
-  // Une rareté absente du catalogue est une information en soi : elle dit que la
-  // source ne couvre pas cette catégorie d'impressions.
+  // Quand le terme est une rareté, on montre sa répartition par produit : c'est
+  // la seule façon de dire si les cartes trouvées sont bien celles qu'on visait,
+  // sans avoir à lire la liste carte par carte.
+  if (asRarity > 0) {
+    const bySet = selectAll<{ set_id: string; set_name: string; n: number }>(
+      `SELECT s.id AS set_id, s.name AS set_name, COUNT(*) AS n
+       FROM cards c JOIN sets s ON s.id = c.set_id
+       WHERE c.rarity = @exact COLLATE NOCASE
+       GROUP BY s.id ORDER BY n DESC, s.id`,
+      { exact: term },
+    );
+    console.log(`\nRépartition de la rareté ${term.toUpperCase()} :`);
+    for (const row of bySet) {
+      console.log(`  ${row.set_id.padEnd(10)} ${String(row.n).padStart(4)}  ${row.set_name}`);
+    }
+  }
+
+  // La liste complète des raretés est la réponse de fond : peu importe comment
+  // la source les orthographie, une rareté absente d'ici n'est pas couverte.
   const rarities = selectAll<{ rarity: string; n: number }>(
     'SELECT rarity, COUNT(*) AS n FROM cards WHERE rarity IS NOT NULL GROUP BY rarity ORDER BY n DESC',
   );
-  console.log(`\nRaretés présentes dans le catalogue : ${rarities.map((r) => `${r.rarity}=${r.n}`).join(', ')}`);
+  console.log(`\nToutes les raretés du catalogue : ${rarities.map((r) => `${r.rarity}=${r.n}`).join(', ')}`);
 
   const languages = selectAll<{ language: string; n: number }>(
     'SELECT language, COUNT(*) AS n FROM cards GROUP BY language ORDER BY n DESC',
