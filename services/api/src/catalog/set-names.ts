@@ -25,6 +25,18 @@ interface OptcgDeck {
 
 export type SetNameDirectory = Map<string, string>;
 
+/**
+ * Libellés pour les codes que la source ne nomme pas.
+ *
+ * Volontairement limité à ce qui est certain : « P » est le préfixe des cartes
+ * promotionnelles (P-001, P-002…). Les codes dont je ne connais pas le produit
+ * gardent leur code à l'écran plutôt qu'un nom inventé — `npm run api:stats` les
+ * signale pour qu'on les traite quand on saura ce qu'ils désignent.
+ */
+const KNOWN_LABELS: Record<string, string> = {
+  P: 'Cartes promotionnelles',
+};
+
 export async function fetchSetNames(): Promise<SetNameDirectory> {
   const directory: SetNameDirectory = new Map();
 
@@ -48,6 +60,10 @@ export async function fetchSetNames(): Promise<SetNameDirectory> {
       })
       .catch(() => undefined),
   ]);
+
+  for (const [code, label] of Object.entries(KNOWN_LABELS)) {
+    if (!directory.has(code)) directory.set(code, label);
+  }
 
   return directory;
 }

@@ -139,7 +139,15 @@ export class DotggProvider implements CatalogProvider {
       // `CardSets` liste tous les produits où la carte figure ; seul celui dont le
       // code correspond à son extension nomme cette extension. Prendre le premier
       // venu attribuait à OP01 le nom d'une collection premium.
-      const entry = parseCardSets(raw.CardSets).find((candidate) => candidate.code === setId);
+      const entries = parseCardSets(raw.CardSets);
+      const entry =
+        entries.find((candidate) => candidate.code === setId) ??
+        // Produits dérivés (pré-sorties, coffrets démo) dont le code ne figure pas
+        // tel quel : un nom approchant reste préférable à un code brut à l'écran.
+        entries.find(
+          (candidate) => candidate.code.startsWith(setId) || setId.startsWith(candidate.code),
+        ) ??
+        entries[0];
       const setName = entry?.name ?? setId;
 
       if (!setNames.has(setId)) setOrder.push(setId);

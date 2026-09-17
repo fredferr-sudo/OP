@@ -72,8 +72,15 @@ function main(): void {
     prix: string | null;
   }>(
     `SELECT c.id, c.name, s.name AS set_name,
+            -- Dernier relevé seulement : sans quoi chaque jour d'historique
+            -- ajoute une occurrence et la ligne devient illisible.
             (SELECT GROUP_CONCAT(p.marketplace || '=' || p.market, ' ')
-             FROM price_snapshots p WHERE p.card_id = c.id AND p.foil = 0) AS prix
+             FROM price_snapshots p
+             WHERE p.card_id = c.id AND p.foil = 0
+               AND p.captured_on = (
+                 SELECT MAX(q.captured_on) FROM price_snapshots q
+                 WHERE q.card_id = p.card_id AND q.marketplace = p.marketplace AND q.foil = 0
+               )) AS prix
      FROM cards c JOIN sets s ON s.id = c.set_id
      ORDER BY c.id LIMIT 8`,
   )) {

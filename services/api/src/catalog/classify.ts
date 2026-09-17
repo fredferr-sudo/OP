@@ -95,6 +95,12 @@ export function normalizeSetId(raw: string): string {
   const composite = /^([A-Z]+\d+)-([A-Z]+\d+)$/.exec(id);
   if (composite) return composite[1];
 
+  // Composite sans tiret (« EB0304 » pour une carte présente dans EB03 et EB04).
+  // Les numéros de produit du jeu tiennent sur deux chiffres, donc quatre chiffres
+  // d'affilée désignent deux produits accolés : on retient le premier.
+  const glued = /^([A-Z]+)(\d{2})\d{2}$/.exec(id);
+  if (glued) return `${glued[1]}${glued[2]}`;
+
   // Sinon le tiret n'est qu'un séparateur de présentation : « OP-01 » et « OP01 »
   // désignent le même produit, et doivent donner la même clé — sans quoi le
   // dictionnaire de noms anglais ne correspond jamais.
