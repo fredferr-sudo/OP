@@ -23,6 +23,7 @@ interface Row {
   name?: string;
   set?: string;
   CardSets?: string;
+  language?: string;
 }
 
 // Le champ `set` passe par la même normalisation que le catalogue — identifiants
@@ -139,6 +140,44 @@ async function main(): Promise<void> {
   const unseen = [...cardSetCodes].filter((c) => !setValues.has(c)).sort();
   line('codes vus seulement dans CardSets', unseen.length);
   if (unseen.length > 0) line('lesquels', unseen.slice(0, 24).join(', '));
+
+  // --- Langues : de quoi savoir si l'app peut distinguer les éditions
+  //     internationale, française et japonaise, et sur quelles données.
+  const byLanguage = new Map<string, { count: number; sets: Set<string>; sample: string[] }>();
+  for (const row of rows) {
+    const language = String(row.language ?? '').trim().toLowerCase() || '(vide)';
+    let entry = byLanguage.get(language);
+    if (!entry) {
+      entry = { count: 0, sets: new Set(), sample: [] };
+      byLanguage.set(language, entry);
+    }
+    entry.count += 1;
+    entry.sets.add(normalizeSetId(String(row.set ?? '')));
+    if (entry.sample.length < 3) entry.sample.push(String(row.id ?? ''));
+  }
+
+  console.log('\nLangues');
+  for (const [language, entry] of [...byLanguage.entries()].sort((a, b) => b[1].count - a[1].count)) {
+    line(language, `${entry.count} cartes · ${entry.sets.size} produits · ex. ${entry.sample.join(', ')}`);
+  }
+
+  // Une carte imprimée en plusieurs langues porte-t-elle le même identifiant ?
+  // C'est ce qui décide si les éditions sont des cartes distinctes ou une seule
+  // carte déclinée, et donc comment l'app doit les présenter.
+  const idLanguages = new Map<string, Set<string>>();
+  for (const row of rows) {
+    const id = String(row.id ?? '').toUpperCase();
+    if (!id) continue;
+    const language = String(row.language ?? '').trim().toLowerCase() || '(vide)';
+    const seen = idLanguages.get(id) ?? new Set<string>();
+    seen.add(language);
+    idLanguages.set(id, seen);
+  }
+  const multilingual = [...idLanguages.entries()].filter(([, langs]) => langs.size > 1);
+  line('identifiants vus en plusieurs langues', multilingual.length);
+  if (multilingual.length > 0) {
+    line('exemples', multilingual.slice(0, 6).map(([id, langs]) => `${id} (${[...langs].join('/')})`).join(', '));
+  }
 
   examples('Alt-art, une entrée différente de set', sampleAltOneDifferent);
   examples('Alt-art, plusieurs entrées dont set', sampleAltManyWithSet);

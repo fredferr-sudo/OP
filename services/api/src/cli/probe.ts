@@ -83,6 +83,24 @@ function describeRecord(record: unknown, columns?: string[]): string {
   return `    ${short(record)}`;
 }
 
+/**
+ * Résumé court : de quoi comparer des variantes sans noyer le terminal.
+ * Les champs retenus suffisent à dire si la réponse diffère vraiment de la
+ * version de référence — un même nombre de cartes et la même langue signalent
+ * une variante ignorée par le serveur.
+ */
+function brief(payload: unknown): string {
+  const list = Array.isArray(payload)
+    ? payload
+    : (((payload as { data?: unknown[] })?.data ?? []) as unknown[]);
+  if (list.length === 0) return 'aucune carte';
+
+  const first = (list[0] ?? {}) as Record<string, unknown>;
+  const keys = ['id', 'name', 'language', 'set'];
+  const summary = keys.map((key) => `${key}=${short(first[key], 28)}`).join(' · ');
+  return `${list.length} cartes · 1re : ${summary}`;
+}
+
 /** Résume la forme d'une réponse JSON, avec un exemple d'enregistrement complet. */
 function describeJson(payload: unknown): string {
   if (Array.isArray(payload)) {
