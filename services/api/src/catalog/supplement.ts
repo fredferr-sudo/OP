@@ -44,6 +44,10 @@ interface SupplementFile {
      *  rapprochement par nom au moment de relever le prix. */
     cardmarketId?: string | number | null;
     cardmarketUrl?: string | null;
+    /** Recherche eBay à utiliser pour coter la carte.
+     *  Pour une promo d'événement, c'est souvent la seule cotation qui existe :
+     *  elle n'a ni fiche Cardmarket ni fiche TCGplayer, mais elle se revend. */
+    ebayQuery?: string | null;
   }>;
 }
 
@@ -103,14 +107,30 @@ export function loadSupplement(): CatalogPayload | null {
 
   // Un identifiant produit fourni à la main vaut mieux qu'un rapprochement par
   // nom : on l'enregistre comme correspondance certaine.
-  const links = (parsed.cards ?? [])
-    .filter((card) => card.cardmarketId)
-    .map((card) => ({
-      cardId: card.id.trim().toUpperCase(),
-      marketplace: 'cardmarket' as const,
-      externalId: String(card.cardmarketId),
-      url: card.cardmarketUrl ?? null,
-    }));
+  const links: CatalogPayload['links'] = [];
+  for (const card of parsed.cards ?? []) {
+    const cardId = card.id.trim().toUpperCase();
+    if (card.cardmarketId) {
+      links.push({
+        cardId,
+        marketplace: 'cardmarket',
+        externalId: String(card.cardmarketId),
+        url: card.cardmarketUrl ?? null,
+      });
+    }
+    // eBay n'a pas de fiche produit : c'est la requête qui identifie la carte,
+    // et pour une promo d'événement elle vaut souvent mieux qu'un identifiant
+    // Cardmarket qui n'existe pas.
+    if (card.ebayQuery) {
+      links.push({
+        cardId,
+        marketplace: 'ebay',
+        externalId: null,
+        query: card.ebayQuery.trim(),
+        url: null,
+      });
+    }
+  }
 
   if (sets.length === 0 && cards.length === 0) return null;
   return { sets, cards, links };

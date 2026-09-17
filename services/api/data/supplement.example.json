@@ -1,10 +1,15 @@
 {
   "_lisezmoi": [
-    "Cartes que les sources internationales ne connaissent pas : exclusivités",
-    "régionales, promos d'événements. Copie ce fichier en « supplement.json »",
-    "dans le même dossier, puis relance « npm run api:sync -- catalog ».",
-    "Il est fusionné après la source principale, donc jamais écrasé par elle.",
-    "Seuls id, name et setId sont obligatoires ; le reste est facultatif."
+    "Cartes qu'aucune liste officielle ne publie : promos d'événement, prix de",
+    "tournoi, cartes de boutique. Copie ce fichier en « supplement.json » dans",
+    "le même dossier, puis relance « npm run api:sync -- catalog ».",
+    "Il est fusionné après les sources, donc jamais écrasé par elles.",
+    "Seuls id, name et setId sont obligatoires ; le reste est facultatif.",
+    "",
+    "Pour que la carte soit cotée, renseigne au moins l'un des deux :",
+    "  cardmarketId — identifiant produit, lu dans l'URL d'une fiche Cardmarket",
+    "  ebayQuery    — recherche eBay ; la seule cotation qui existe pour une",
+    "                 promo d'événement, qui n'a de fiche chez personne."
   ],
   "sets": [
     {
@@ -16,19 +21,28 @@
   ],
   "cards": [
     {
-      "id": "FR-EVENT-001",
-      "name": "Monkey.D.Luffy",
+      "_note": [
+        "Exemple réel : la promo du Musée Grévin, distribuée à Paris à partir du",
+        "26 juin 2026. Bandai ne la publie pas dans sa liste française — OP13-001",
+        "n'y a que deux impressions, toutes deux dans le booster OP-13 — parce",
+        "qu'elle porte « NOT FOR SALE » et n'a jamais été vendue.",
+        "L'identifiant est suffixé pour ne pas écraser l'impression officielle."
+      ],
+      "id": "OP13-001_grevin@FR",
+      "code": "OP13-001",
+      "name": "Monkey D. Luffy",
       "setId": "FR-EVENT",
-      "category": "CHARACTER",
+      "category": "LEADER",
       "rarity": "P",
       "colors": "Red",
-      "cost": 5,
-      "power": 6000,
+      "life": 5,
+      "power": 5000,
       "attributes": "Strike",
-      "types": "Straw Hat Crew",
-      "effect": "Exemple — remplace cette carte par la tienne.",
+      "types": "Les Quatre Empereurs/Équipage du Chapeau de Paille",
+      "effect": "Illustration alternative Grévin × Toei. Vérifie l'effet sur ta carte.",
       "imageUrl": null,
-      "language": "FR"
+      "language": "FR",
+      "ebayQuery": "One Piece OP13-001 Luffy Grevin promo"
     }
   ]
 }

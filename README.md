@@ -259,7 +259,18 @@ API sont fermées** à ce jour (« we are not accepting applications for API acc
 at this time »). Le connecteur est prêt pour le jour où elles rouvriront.
 
 Quand aucune source ne connaît une carte, il reste la saisie dans le complément :
-c'est le cas des exclusivités les plus confidentielles.
+c'est le cas des exclusivités les plus confidentielles. Le cas d'école est la
+promo du Musée Grévin — une illustration alternative de OP13-001 distribuée à
+Paris, marquée « NOT FOR SALE ». Bandai ne la publie pas dans sa liste
+française, où OP13-001 n'a que deux impressions, toutes deux dans le booster
+OP-13 : elle n'a jamais été vendue, donc elle n'est ni au catalogue de
+l'éditeur ni sur une fiche produit de marketplace.
+
+Une telle carte se cote quand même, parce qu'elle se revend. Le complément
+accepte donc, en plus d'un `cardmarketId`, une `ebayQuery` : eBay n'indexe pas
+de produit, c'est la recherche qui identifie la carte, et pour une promo
+d'événement c'est la seule cotation qui existe. `supplement.example.json`
+contient l'entrée complète de la carte Grévin, prête à adapter.
 
 ### Savoir ce qui manque vraiment
 

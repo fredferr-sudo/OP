@@ -185,7 +185,7 @@ export async function syncCatalog(options: CatalogSyncOptions = {}): Promise<Cat
           marketplace: link.marketplace,
           externalId: link.externalId,
           externalName: null,
-          query: null,
+          query: link.query ?? null,
           url: link.url,
           confidence: 1,
         });

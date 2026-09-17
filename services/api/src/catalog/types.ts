@@ -12,7 +12,10 @@ export interface CatalogCard extends Omit<Card, 'setName' | 'setKind' | 'updated
 export interface CatalogLink {
   cardId: string;
   marketplace: Marketplace;
-  externalId: string;
+  /** Nul chez eBay, qui n'a pas de fiche produit : la requête en tient lieu. */
+  externalId: string | null;
+  /** Recherche à utiliser quand la marketplace n'indexe pas de produit. */
+  query?: string | null;
   url: string | null;
 }
 
