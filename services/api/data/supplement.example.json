@@ -1,0 +1,34 @@
+{
+  "_lisezmoi": [
+    "Cartes que les sources internationales ne connaissent pas : exclusivités",
+    "régionales, promos d'événements. Copie ce fichier en « supplement.json »",
+    "dans le même dossier, puis relance « npm run api:sync -- catalog ».",
+    "Il est fusionné après la source principale, donc jamais écrasé par elle.",
+    "Seuls id, name et setId sont obligatoires ; le reste est facultatif."
+  ],
+  "sets": [
+    {
+      "id": "FR-EVENT",
+      "name": "Exclusivités françaises",
+      "kind": "promo",
+      "releaseDate": null
+    }
+  ],
+  "cards": [
+    {
+      "id": "FR-EVENT-001",
+      "name": "Monkey.D.Luffy",
+      "setId": "FR-EVENT",
+      "category": "CHARACTER",
+      "rarity": "P",
+      "colors": "Red",
+      "cost": 5,
+      "power": 6000,
+      "attributes": "Strike",
+      "types": "Straw Hat Crew",
+      "effect": "Exemple — remplace cette carte par la tienne.",
+      "imageUrl": null,
+      "language": "FR"
+    }
+  ]
+}

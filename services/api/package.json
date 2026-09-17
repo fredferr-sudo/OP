@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "probe": "node --disable-warning=ExperimentalWarning src/cli/probe.ts",
     "stats": "node --disable-warning=ExperimentalWarning src/cli/stats.ts",
-    "analyse": "node --disable-warning=ExperimentalWarning src/cli/analyse.ts"
+    "analyse": "node --disable-warning=ExperimentalWarning src/cli/analyse.ts",
+    "find": "node --disable-warning=ExperimentalWarning src/cli/find.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

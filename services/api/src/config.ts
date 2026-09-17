@@ -34,6 +34,9 @@ export const config = {
     dotggUrl: str('DOTGG_URL', 'https://api.dotgg.gg/cgfw/getcards?game=onepiece'),
     // Sert uniquement de dictionnaire de noms de produits en anglais.
     optcgBaseUrl: str('OPTCG_BASE_URL', 'https://optcgapi.com/api'),
+    // Cartes que les sources internationales ignorent : exclusivités régionales,
+    // promos d'événements. Fusionné après elles, donc jamais écrasé.
+    supplementPath: resolve(process.cwd(), str('SUPPLEMENT_PATH', './data/supplement.json')),
   },
 
   cardmarket: {

@@ -30,6 +30,9 @@ async function main(): Promise<void> {
         `Correspondances marketplace : ${result.links} · prix relevés : ${result.quotes}`,
       );
     }
+    if (result.supplemented > 0) {
+      console.log(`Complément local : ${result.supplemented} cartes ajoutées.`);
+    }
 
     // Une bascule silencieuse serait trompeuse : sur le catalogue local, l'app
     // n'affiche qu'une douzaine de cartes de démonstration.

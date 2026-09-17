@@ -8,6 +8,8 @@ build/
 .env.local
 data/*.db
 data/images/
+# Le complément est propre à chaque collection ; l'exemple, lui, est versionné.
+services/api/data/supplement.json
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm

@@ -160,6 +160,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:probe` | Teste les sources de catalogue et décrit leurs réponses |
 | `npm run api:probe -- card OP01-001` | Affiche les enregistrements bruts d'une carte et de ses illustrations |
 | `npm run api:analyse` | Analyse le classement des cartes par produit sur tout le catalogue |
+| `npm run api:find -- grevin` | Cherche une carte dans le catalogue synchronisé |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
@@ -222,6 +223,20 @@ Les réponses de l'API réécrivent `imageUrl` vers ce relais, en construisant
 l'adresse à partir de la requête reçue — elle reste donc correcte que l'app
 appelle le backend par « localhost » depuis un ordinateur ou par son IP locale
 depuis un téléphone.
+
+## Les cartes qu'aucune source ne connaît
+
+Les sources internationales ignorent les exclusivités régionales : une promo
+distribuée lors d'un événement français n'existe dans aucune d'elles. Plutôt que
+de chercher indéfiniment une source qui couvrirait tout, le catalogue accepte un
+**complément local** : copie `services/api/data/supplement.example.json` en
+`supplement.json` dans le même dossier, décris-y tes cartes, et relance la
+synchronisation. Seuls `id`, `name` et `setId` sont obligatoires.
+
+Le complément est fusionné **après** la source principale : il ajoute ce qu'elle
+ignore et corrige ce qu'elle donne de travers, sans jamais être écrasé par elle.
+`npm run api:find -- <terme>` sert à vérifier ce que le catalogue contient
+réellement — la recherche ignore les accents, donc « grevin » trouve « Grévin ».
 
 ## Sources du catalogue
 

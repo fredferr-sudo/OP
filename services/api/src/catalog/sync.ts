@@ -12,6 +12,7 @@ import { inferSetKind } from './classify.ts';
 import { ApiTcgProvider } from './providers/apitcg.ts';
 import { DotggProvider } from './providers/dotgg.ts';
 import { LocalProvider } from './providers/local.ts';
+import { loadSupplement, supplementPath } from './supplement.ts';
 import type { CatalogProvider } from './types.ts';
 
 export function createCatalogProvider(): CatalogProvider {
@@ -49,6 +50,8 @@ export interface CatalogSyncResult {
   links: number;
   /** Prix relevés au passage par la source. */
   quotes: number;
+  /** Cartes ajoutées par le complément local. */
+  supplemented: number;
   /** Renseigné quand les sources préférées ont échoué. */
   fellBackTo?: string;
   failures?: string[];
@@ -85,6 +88,15 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
     }
 
     const { sets, cards, links = [], quotes = [] } = payload;
+
+    // Le complément est fusionné après la source : il ajoute les cartes qu'elle
+    // ignore — exclusivités régionales, promos d'événements — et corrige ce
+    // qu'elle donne de travers, sans jamais être écrasé par elle.
+    const supplement = loadSupplement();
+    if (supplement) {
+      sets.push(...supplement.sets);
+      cards.push(...supplement.cards);
+    }
 
     transaction(() => {
       for (const set of sets) {
@@ -151,6 +163,7 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
       cards: cards.length,
       links: links.length,
       quotes: quotes.length,
+      supplemented: supplement?.cards.length ?? 0,
       fellBackTo: failures.length > 0 ? used.name : undefined,
       failures: failures.length > 0 ? failures : undefined,
     };
