@@ -82,7 +82,7 @@ autres continuent de fonctionner.
 | Source | Accès | Ce qu'on en tire |
 | --- | --- | --- |
 | **dotgg** | aucun — c'est la source du catalogue | prix courant Cardmarket et TCGplayer, normal et foil |
-| **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | prix bas, tendance, moyennes 1 / 7 / 30 jours, nombre d'offres |
+| **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | première offre en Near Mint, prix bas, moyennes 1 / 7 / 30 jours, nombre d'offres |
 | **TCGplayer** | OAuth2 client credentials, portail développeur | low / mid / market / direct low |
 | **eBay** | OAuth2 client credentials, Browse API | médiane et minimum des annonces en cours |
 
@@ -111,6 +111,24 @@ appuyé d'abord sur le code imprimé (`OP01-001`), puis sur le nom et l'extensio
 avec une pénalité quand une illustration alternative risque d'être confondue avec
 la carte de base. En dessous de 0,55 de confiance, la carte n'est pas relevée
 plutôt que de produire un prix faux.
+
+### Le prix de référence retenu chez Cardmarket
+
+C'est celui de la **première offre en Near Mint**, autrement dit le chiffre qu'on
+lit sur la fiche produit une fois le filtre d'état appliqué. Ni la tendance, qui
+lisse le marché et ne correspond à aucune offre réelle, ni le prix le plus bas
+toutes conditions confondues, qui désigne souvent un exemplaire abîmé.
+
+Le guide de prix de Cardmarket ne l'expose pas : il faut interroger les offres
+réelles (`/articles/:idProduct`), en écartant les lots, dont le prix affiché
+induirait en erreur. Comme rien ne garantit leur tri, on retient le minimum de
+l'échantillon plutôt que son premier élément. Le guide reste interrogé en
+parallèle, ses moyennes glissantes alimentant la reconstruction d'historique.
+
+L'état minimum, la langue et la taille de l'échantillon se règlent dans `.env`
+(`CARDMARKET_MIN_CONDITION`, `CARDMARKET_LANGUAGE_ID`, `CARDMARKET_ARTICLE_SAMPLE`).
+Si le service d'offres est indisponible, le relevé bascule sur le guide plutôt
+que d'être perdu.
 
 ### L'historique
 

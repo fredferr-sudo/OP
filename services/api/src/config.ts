@@ -42,6 +42,13 @@ export const config = {
     accessToken: str('CARDMARKET_ACCESS_TOKEN'),
     accessSecret: str('CARDMARKET_ACCESS_SECRET'),
     baseUrl: str('CARDMARKET_BASE_URL', 'https://api.cardmarket.com/ws/v2.0/output.json'),
+    // État minimum retenu pour le prix de référence : c'est le premier prix
+    // affiché sur la fiche produit une fois ce filtre appliqué.
+    minCondition: str('CARDMARKET_MIN_CONDITION', 'NM'),
+    // Vide = toutes langues, comme le filtre par défaut du site.
+    languageId: str('CARDMARKET_LANGUAGE_ID'),
+    // Nombre d'offres examinées pour trouver la moins chère.
+    articleSample: num('CARDMARKET_ARTICLE_SAMPLE', 30),
   },
 
   tcgplayer: {

@@ -52,6 +52,16 @@ interface CardmarketGame {
   name: string;
 }
 
+/** Une offre en vente sur la place de marché. */
+interface CardmarketArticle {
+  idArticle?: number;
+  price?: number;
+  priceEUR?: number;
+  count?: number;
+  condition?: string;
+  isFoil?: boolean;
+}
+
 export class CardmarketProvider implements PriceProvider {
   readonly marketplace: Marketplace = 'cardmarket';
 
@@ -160,6 +170,41 @@ export class CardmarketProvider implements PriceProvider {
     };
   }
 
+  /**
+   * Prix de la première offre dans l'état demandé.
+   *
+   * C'est le chiffre qu'on lit sur la fiche produit après avoir filtré sur l'état :
+   * ni la tendance, qui lisse le marché, ni le prix le plus bas toutes conditions
+   * confondues, qui correspond souvent à un exemplaire abîmé. Le guide de prix ne
+   * l'expose pas, il faut donc regarder les offres réelles.
+   *
+   * Les offres ne sont pas garanties triées : on retient le minimum de
+   * l'échantillon plutôt que son premier élément.
+   */
+  private async lowestListing(productId: string, foil: boolean): Promise<number | null> {
+    const params = new URLSearchParams({
+      start: '0',
+      maxResults: String(config.cardmarket.articleSample),
+      minCondition: config.cardmarket.minCondition,
+      isFoil: foil ? 'true' : 'false',
+      // Un lot de plusieurs exemplaires afficherait un prix unitaire trompeur.
+      isPlayset: 'false',
+    });
+    if (config.cardmarket.languageId) params.set('idLanguage', config.cardmarket.languageId);
+
+    const payload = await this.get<{ article?: CardmarketArticle[] }>(
+      `/articles/${productId}?${params.toString()}`,
+    );
+
+    let lowest: number | null = null;
+    for (const article of payload.article ?? []) {
+      const value = article.price ?? article.priceEUR;
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) continue;
+      if (lowest === null || value < lowest) lowest = value;
+    }
+    return lowest;
+  }
+
   async fetchQuote(card: Card, link: MarketLink): Promise<PriceQuote | null> {
     if (!link.externalId) return null;
 
@@ -169,12 +214,27 @@ export class CardmarketProvider implements PriceProvider {
     const guide = payload.product?.priceGuide;
     if (!guide) return null;
 
+    // Le guide reste nécessaire : ses moyennes glissantes alimentent la
+    // reconstruction de l'historique sur trente jours.
+    let reference: number | null = null;
+    try {
+      reference = await this.lowestListing(link.externalId, false);
+    } catch (error) {
+      // Une offre introuvable ne doit pas faire perdre le relevé du jour.
+      console.warn(
+        `[cardmarket] offres indisponibles pour ${card.code}, repli sur le guide :`,
+        error instanceof Error ? error.message.split('\n')[0] : error,
+      );
+    }
+
     return {
       cardId: card.id,
       marketplace: 'cardmarket',
       currency: 'EUR',
-      low: guide.LOW ?? guide.LOWEX ?? null,
-      market: guide.TREND ?? guide.AVG ?? null,
+      low: guide.LOW ?? null,
+      // Première offre dans l'état demandé ; à défaut, le plus bas prix en bon
+      // état du guide, puis la tendance.
+      market: reference ?? guide.LOWEX ?? guide.TREND ?? guide.AVG ?? null,
       avg1: guide.AVG1 ?? null,
       avg7: guide.AVG7 ?? null,
       avg30: guide.AVG30 ?? null,
