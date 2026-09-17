@@ -62,22 +62,18 @@ interface CardmarketArticle {
   isFoil?: boolean;
 }
 
-export class CardmarketProvider implements PriceProvider {
-  readonly marketplace: Marketplace = 'cardmarket';
+/** Les quatre jetons sont-ils renseignés ? */
+export function cardmarketConfigured(): boolean {
+  const c = config.cardmarket;
+  return Boolean(c.appToken && c.appSecret && c.accessToken && c.accessSecret);
+}
 
-  private gameId: number | null = null;
-
-  isConfigured(): boolean {
-    const c = config.cardmarket;
-    return Boolean(c.appToken && c.appSecret && c.accessToken && c.accessSecret);
-  }
-
-  /**
-   * Signature OAuth 1.0a. Cardmarket signe l'URL *sans* les paramètres de requête
-   * dans l'URL de base, mais *avec* eux dans la chaîne de paramètres.
-   */
-  private authHeader(method: string, url: string): string {
-    const c = config.cardmarket;
+/**
+ * Signature OAuth 1.0a. Cardmarket signe l'URL *sans* les paramètres de requête
+ * dans l'URL de base, mais *avec* eux dans la chaîne de paramètres.
+ */
+function authHeader(method: string, url: string): string {
+  const c = config.cardmarket;
     const parsed = new URL(url);
     const baseUrl = `${parsed.origin}${parsed.pathname}`;
 
@@ -115,32 +111,45 @@ export class CardmarketProvider implements PriceProvider {
       .join(', ')}`;
   }
 
-  private async get<T>(path: string): Promise<T> {
-    const url = `${config.cardmarket.baseUrl}${path}`;
-    return requestJson<T>(url, {
-      headers: {
-        Authorization: this.authHeader('GET', url),
-        accept: 'application/json',
-      },
-    });
+/** Appel signé à l'API Cardmarket. */
+export async function cardmarketGet<T>(path: string): Promise<T> {
+  const url = `${config.cardmarket.baseUrl}${path}`;
+  return requestJson<T>(url, {
+    headers: {
+      Authorization: authHeader('GET', url),
+      accept: 'application/json',
+    },
+  });
+}
+
+let cachedGameId: number | null = null;
+
+/** Cardmarket attribue un identifiant à chaque jeu ; on le résout par son nom. */
+export async function cardmarketGameId(): Promise<number> {
+  if (cachedGameId !== null) return cachedGameId;
+
+  const payload = await cardmarketGet<{ game: CardmarketGame[] }>('/games');
+  const match = (payload.game ?? []).find((g) => /one piece/i.test(g.name));
+  if (!match) {
+    throw new Error("Le jeu 'One Piece Card Game' est introuvable dans /games chez Cardmarket.");
+  }
+  cachedGameId = match.idGame;
+  return match.idGame;
+}
+
+export class CardmarketProvider implements PriceProvider {
+  readonly marketplace: Marketplace = 'cardmarket';
+
+  isConfigured(): boolean {
+    return cardmarketConfigured();
   }
 
-  /** Cardmarket attribue un identifiant à chaque jeu ; on le résout par son nom. */
-  private async resolveGameId(): Promise<number> {
-    if (this.gameId !== null) return this.gameId;
-
-    const payload = await this.get<{ game: CardmarketGame[] }>('/games');
-    const games = payload.game ?? [];
-    const match = games.find((g) => /one piece/i.test(g.name));
-    if (!match) {
-      throw new Error("Le jeu 'One Piece Card Game' est introuvable dans /games chez Cardmarket.");
-    }
-    this.gameId = match.idGame;
-    return match.idGame;
+  private get<T>(path: string): Promise<T> {
+    return cardmarketGet<T>(path);
   }
 
   async findProduct(card: Card): Promise<ProductMatch | null> {
-    const gameId = await this.resolveGameId();
+    const gameId = await cardmarketGameId();
     const search = encodeURIComponent(card.name);
     const payload = await this.get<{ product?: CardmarketProduct[] }>(
       `/products/find?search=${search}&idGame=${gameId}&idLanguage=1&exact=false&start=0&maxResults=50`,

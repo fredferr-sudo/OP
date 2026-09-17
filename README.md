@@ -161,6 +161,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:probe -- card OP01-001` | Affiche les enregistrements bruts d'une carte et de ses illustrations |
 | `npm run api:analyse` | Analyse le classement des cartes par produit sur tout le catalogue |
 | `npm run api:find -- grevin` | Cherche une carte dans le catalogue synchronisé |
+| `npm run api:discover` | Détecte les cartes absentes en confrontant le catalogue à Cardmarket |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
@@ -237,6 +238,14 @@ Le complément est fusionné **après** la source principale : il ajoute ce qu'e
 ignore et corrige ce qu'elle donne de travers, sans jamais être écrasé par elle.
 `npm run api:find -- <terme>` sert à vérifier ce que le catalogue contient
 réellement — la recherche ignore les accents, donc « grevin » trouve « Grévin ».
+
+Le remplir à la main n'est pas une fatalité : `npm run api:discover` énumère le
+catalogue One Piece de **Cardmarket**, place de marché européenne qui vend donc
+les exclusivités régionales, le confronte au catalogue local et rapporte ce qui
+manque ; avec `-- --write`, il l'écrit directement dans le complément, identifiant
+produit Cardmarket inclus — ce qui donne au passage le prix de ces cartes sans
+rapprochement approximatif. Cela demande les jetons Cardmarket, gratuits depuis
+ton compte.
 
 ## Sources du catalogue
 

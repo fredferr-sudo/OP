@@ -40,6 +40,10 @@ interface SupplementFile {
     imageUrl?: string | null;
     artVariant?: number;
     language?: string;
+    /** Identifiant produit Cardmarket, quand on le connaît : il évite tout
+     *  rapprochement par nom au moment de relever le prix. */
+    cardmarketId?: string | number | null;
+    cardmarketUrl?: string | null;
   }>;
 }
 
@@ -93,10 +97,21 @@ export function loadSupplement(): CatalogPayload | null {
       trigger: card.trigger ?? null,
       imageUrl: card.imageUrl ?? null,
       artVariant: card.artVariant ?? 0,
-      language: (card.language ?? 'FR').toUpperCase() as CatalogCard['language'],
+      language: (card.language ?? 'EN').toUpperCase() as CatalogCard['language'],
     };
   });
 
+  // Un identifiant produit fourni à la main vaut mieux qu'un rapprochement par
+  // nom : on l'enregistre comme correspondance certaine.
+  const links = (parsed.cards ?? [])
+    .filter((card) => card.cardmarketId)
+    .map((card) => ({
+      cardId: card.id.trim().toUpperCase(),
+      marketplace: 'cardmarket' as const,
+      externalId: String(card.cardmarketId),
+      url: card.cardmarketUrl ?? null,
+    }));
+
   if (sets.length === 0 && cards.length === 0) return null;
-  return { sets, cards };
+  return { sets, cards, links };
 }

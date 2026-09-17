@@ -11,7 +11,8 @@
     "probe": "node --disable-warning=ExperimentalWarning src/cli/probe.ts",
     "stats": "node --disable-warning=ExperimentalWarning src/cli/stats.ts",
     "analyse": "node --disable-warning=ExperimentalWarning src/cli/analyse.ts",
-    "find": "node --disable-warning=ExperimentalWarning src/cli/find.ts"
+    "find": "node --disable-warning=ExperimentalWarning src/cli/find.ts",
+    "discover": "node --disable-warning=ExperimentalWarning src/cli/discover.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",

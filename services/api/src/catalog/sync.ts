@@ -96,6 +96,7 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
     if (supplement) {
       sets.push(...supplement.sets);
       cards.push(...supplement.cards);
+      links.push(...(supplement.links ?? []));
     }
 
     transaction(() => {
