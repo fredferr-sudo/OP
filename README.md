@@ -374,6 +374,22 @@ le résultat n'est que la démonstration. `npm run api:probe` interroge chaque
 source et décrit ce qu'elle renvoie réellement, visuels des cartes compris :
 c'est l'outil à lancer quand une synchronisation se dégrade.
 
+## Quelles clés sont réellement obtenables
+
+Sur les trois marketplaces, une seule ouvre encore ses accès :
+
+| | Accès API | Prix dans l'app | Clé nécessaire |
+| --- | --- | --- | --- |
+| Cardmarket | **fermé** aux nouvelles demandes | oui, par la source du catalogue | non |
+| TCGplayer | **fermé** aux nouvelles demandes | oui, par la source du catalogue | non |
+| eBay | ouvert, gratuit | oui, par l'API | oui |
+
+Les deux portes fermées ne coûtent donc pas les prix, qui transitent par la
+source du catalogue. Elles coûtent le parcours de leur catalogue de produits,
+c'est-à-dire la détection des cartes hors-liste chez eux — `api:discover` les
+déclare et les ignore tant qu'aucune clé n'est là, prêt pour une réouverture.
+eBay, lui, couvre à la fois la cotation et la découverte.
+
 ## Le suivi de prix Cardmarket
 
 C'est la fonction qui distingue l'app d'un simple catalogue, et elle ne demande

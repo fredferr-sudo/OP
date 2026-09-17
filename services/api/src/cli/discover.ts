@@ -13,7 +13,9 @@
  *  - apitcg.com, dont la clé est gratuite et l'inscription ouverte ;
  *  - TCGplayer, dont l'API officielle donne le catalogue complet de la
  *    marketplace : c'est là que figurent les cartes qu'aucune liste d'éditeur
- *    ne publie, puisqu'elle référence ce qui se vend et non ce qui est annoncé ;
+ *    ne publie, puisqu'elle référence ce qui se vend et non ce qui est annoncé.
+ *    Elle n'accorde plus de nouveaux accès ; le connecteur attend une
+ *    réouverture, comme celui de Cardmarket ;
  *  - Cardmarket, dont le catalogue européen contiendrait les exclusivités
  *    françaises, mais dont les demandes d'accès API sont fermées à ce jour.
  *
@@ -205,7 +207,7 @@ async function main(): Promise<void> {
       skip:
         config.tcgplayer.publicKey && config.tcgplayer.privateKey
           ? undefined
-          : 'clés absentes de .env — le portail développeur TCGplayer les délivre gratuitement',
+          : "clés absentes de .env — TCGplayer n'accorde plus de nouveaux accès API",
     },
     {
       name: 'cardmarket',
