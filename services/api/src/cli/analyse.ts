@@ -43,6 +43,100 @@ function examples(title: string, rows: Row[], limit = 6): void {
   }
 }
 
+
+/**
+ * Effectifs attendus par produit, relevés dans l'app op.tcg (édition Global).
+ * Ils servent d'étalon : une règle de classement correcte doit les retrouver.
+ */
+const EXPECTED: Array<{ code: string; name: string; count: number }> = [
+  { code: 'OP01', name: 'Romance Dawn', count: 155 },
+  { code: 'OP02', name: 'Paramount War', count: 155 },
+  { code: 'OP03', name: 'Pillars of Strength', count: 155 },
+  { code: 'OP04', name: 'Kingdoms of Intrigue', count: 150 },
+  { code: 'OP05', name: 'Awakening of the New Era', count: 155 },
+  { code: 'OP06', name: 'Wings of the Captain', count: 152 },
+  { code: 'OP07', name: '500 Years in the Future', count: 152 },
+  { code: 'OP08', name: 'Two Legends', count: 152 },
+  { code: 'OP09', name: 'Emperors in the New World', count: 160 },
+  { code: 'OP10', name: 'Royal Blood', count: 152 },
+  { code: 'EB01', name: 'Memorial Collection', count: 80 },
+  { code: 'EB02', name: 'Anime 25th Collection', count: 105 },
+  { code: 'EB03', name: 'Heroines Edition', count: 98 },
+  { code: 'EB04', name: 'Egghead Crisis', count: 87 },
+  { code: 'PRB01', name: 'The Best', count: 409 },
+  { code: 'PRB02', name: 'The Best Vol.2', count: 406 },
+];
+
+type Assignment = Map<string, Set<string>>;
+
+function add(target: Assignment, setId: string, cardId: string): void {
+  if (!setId || !cardId) return;
+  const bucket = target.get(setId) ?? new Set<string>();
+  bucket.add(cardId);
+  target.set(setId, bucket);
+}
+
+/**
+ * Compare les règles de classement candidates aux effectifs attendus.
+ *
+ * « set » est la règle actuelle : une carte appartient au produit que nomme son
+ * champ `set`. « CardSets » est la règle envisagée : une carte appartient à tous
+ * les produits où la source dit qu'elle figure, ce qui autorise une même
+ * illustration à compter dans plusieurs produits. L'écart à l'étalon tranche.
+ */
+function simulate(rows: Row[]): void {
+  const bySet: Assignment = new Map();
+  const bySetEn: Assignment = new Map();
+  const byCardSets: Assignment = new Map();
+  const byCardSetsEn: Assignment = new Map();
+  let pairs = 0;
+
+  for (const row of rows) {
+    const id = String(row.id ?? '').toUpperCase();
+    if (!id) continue;
+    const english = String(row.language ?? '').trim().toLowerCase() === 'en';
+    const setId = normalizeSetId(String(row.set ?? ''));
+
+    add(bySet, setId, id);
+    if (english) add(bySetEn, setId, id);
+
+    const entries = parseCardSets(row.CardSets);
+    const codes = entries.length > 0 ? entries.map((entry) => entry.code) : [setId];
+    for (const code of codes) {
+      add(byCardSets, code, id);
+      if (english) add(byCardSetsEn, code, id);
+      pairs += 1;
+    }
+  }
+
+  const size = (assignment: Assignment, code: string): number => assignment.get(code)?.size ?? 0;
+  const gap = (value: number, expected: number): string => {
+    const delta = value - expected;
+    return delta === 0 ? 'exact' : `${delta > 0 ? '+' : ''}${delta}`;
+  };
+
+  console.log('\nSimulation de classement — écart aux effectifs op.tcg (édition Global)');
+  console.log(
+    `  ${'produit'.padEnd(8)}${'attendu'.padEnd(9)}${'set'.padEnd(8)}${'écart'.padEnd(8)}${'CardSets'.padEnd(10)}${'écart'.padEnd(8)}${'CardSets/en'}`,
+  );
+  for (const target of EXPECTED) {
+    const viaSet = size(bySet, target.code);
+    const viaCardSets = size(byCardSets, target.code);
+    const viaCardSetsEn = size(byCardSetsEn, target.code);
+    console.log(
+      `  ${target.code.padEnd(8)}${String(target.count).padEnd(9)}${String(viaSet).padEnd(8)}` +
+        `${gap(viaSet, target.count).padEnd(8)}${String(viaCardSets).padEnd(10)}` +
+        `${gap(viaCardSets, target.count).padEnd(8)}${viaCardSetsEn} (${gap(viaCardSetsEn, target.count)})`,
+    );
+  }
+
+  console.log('');
+  line('produits — règle actuelle', bySet.size);
+  line('produits — règle CardSets', byCardSets.size);
+  line('couples carte-produit — règle CardSets', pairs);
+  line('cartes anglaises rattachées (CardSets)', [...byCardSetsEn.values()].reduce((n, s) => n + s.size, 0));
+}
+
 async function main(): Promise<void> {
   const payload = await requestJson<unknown>(config.catalog.dotggUrl, {
     headers: { accept: 'application/json' },
@@ -178,6 +272,8 @@ async function main(): Promise<void> {
   if (multilingual.length > 0) {
     line('exemples', multilingual.slice(0, 6).map(([id, langs]) => `${id} (${[...langs].join('/')})`).join(', '));
   }
+
+  simulate(rows);
 
   examples('Alt-art, une entrée différente de set', sampleAltOneDifferent);
   examples('Alt-art, plusieurs entrées dont set', sampleAltManyWithSet);
