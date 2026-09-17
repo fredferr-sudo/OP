@@ -47,8 +47,10 @@ export const config = {
     minCondition: str('CARDMARKET_MIN_CONDITION', 'NM'),
     // Vide = toutes langues, comme le filtre par défaut du site.
     languageId: str('CARDMARKET_LANGUAGE_ID'),
-    // Nombre d'offres examinées pour trouver la moins chère.
+    // Nombre d'offres récupérées auprès de l'API.
     articleSample: num('CARDMARKET_ARTICLE_SAMPLE', 30),
+    // Parmi elles, nombre des moins chères dont on prend la médiane.
+    priceSample: num('CARDMARKET_PRICE_SAMPLE', 3),
   },
 
   tcgplayer: {

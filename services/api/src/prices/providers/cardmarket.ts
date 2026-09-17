@@ -171,15 +171,18 @@ export class CardmarketProvider implements PriceProvider {
   }
 
   /**
-   * Prix de la première offre dans l'état demandé.
+   * Médiane des premières offres dans l'état demandé.
    *
-   * C'est le chiffre qu'on lit sur la fiche produit après avoir filtré sur l'état :
-   * ni la tendance, qui lisse le marché, ni le prix le plus bas toutes conditions
-   * confondues, qui correspond souvent à un exemplaire abîmé. Le guide de prix ne
-   * l'expose pas, il faut donc regarder les offres réelles.
+   * On part du chiffre qu'on lit sur la fiche produit après avoir filtré sur
+   * l'état — ni la tendance, qui lisse le marché, ni le prix le plus bas toutes
+   * conditions confondues, qui correspond souvent à un exemplaire abîmé.
    *
-   * Les offres ne sont pas garanties triées : on retient le minimum de
-   * l'échantillon plutôt que son premier élément.
+   * Retenir la seule offre la moins chère rendrait le suivi nerveux : une carte
+   * mal tarifée, un vendeur qui solde, et la valeur de la collection décroche
+   * pour la journée. La médiane des trois premières absorbe ce cas sans s'éloigner
+   * du prix auquel on achète réellement.
+   *
+   * Les offres ne sont pas garanties triées par prix : on les trie nous-mêmes.
    */
   private async lowestListing(productId: string, foil: boolean): Promise<number | null> {
     const params = new URLSearchParams({
@@ -196,13 +199,16 @@ export class CardmarketProvider implements PriceProvider {
       `/articles/${productId}?${params.toString()}`,
     );
 
-    let lowest: number | null = null;
+    const prices: number[] = [];
     for (const article of payload.article ?? []) {
       const value = article.price ?? article.priceEUR;
       if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) continue;
-      if (lowest === null || value < lowest) lowest = value;
+      prices.push(value);
     }
-    return lowest;
+    if (prices.length === 0) return null;
+
+    prices.sort((a, b) => a - b);
+    return median(prices.slice(0, Math.max(1, config.cardmarket.priceSample)));
   }
 
   async fetchQuote(card: Card, link: MarketLink): Promise<PriceQuote | null> {
@@ -244,6 +250,14 @@ export class CardmarketProvider implements PriceProvider {
       capturedAt: nowIso(),
     };
   }
+}
+
+/** Médiane d'une série déjà triée. */
+function median(sorted: number[]): number {
+  const middle = Math.floor(sorted.length / 2);
+  const value =
+    sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  return Math.round(value * 100) / 100;
 }
 
 /** encodeURIComponent n'échappe pas ! * ' ( ), que OAuth 1.0a exige d'échapper. */

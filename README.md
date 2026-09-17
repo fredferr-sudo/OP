@@ -82,7 +82,7 @@ autres continuent de fonctionner.
 | Source | Accès | Ce qu'on en tire |
 | --- | --- | --- |
 | **dotgg** | aucun — c'est la source du catalogue | prix courant Cardmarket et TCGplayer, normal et foil |
-| **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | première offre en Near Mint, prix bas, moyennes 1 / 7 / 30 jours, nombre d'offres |
+| **Cardmarket** | OAuth 1.0a, jetons créés depuis ton compte (Account → API) | médiane des trois premières offres en Near Mint, prix bas, moyennes 1 / 7 / 30 jours, nombre d'offres |
 | **TCGplayer** | OAuth2 client credentials, portail développeur | low / mid / market / direct low |
 | **eBay** | OAuth2 client credentials, Browse API | médiane et minimum des annonces en cours |
 
@@ -114,21 +114,29 @@ plutôt que de produire un prix faux.
 
 ### Le prix de référence retenu chez Cardmarket
 
-C'est celui de la **première offre en Near Mint**, autrement dit le chiffre qu'on
-lit sur la fiche produit une fois le filtre d'état appliqué. Ni la tendance, qui
-lisse le marché et ne correspond à aucune offre réelle, ni le prix le plus bas
-toutes conditions confondues, qui désigne souvent un exemplaire abîmé.
+C'est la **médiane des trois premières offres en Near Mint**, autrement dit ce
+qu'on lit sur la fiche produit une fois le filtre d'état appliqué. Ni la
+tendance, qui lisse le marché et ne correspond à aucune offre réelle, ni le prix
+le plus bas toutes conditions confondues, qui désigne souvent un exemplaire
+abîmé.
 
-Le guide de prix de Cardmarket ne l'expose pas : il faut interroger les offres
-réelles (`/articles/:idProduct`), en écartant les lots, dont le prix affiché
-induirait en erreur. Comme rien ne garantit leur tri, on retient le minimum de
-l'échantillon plutôt que son premier élément. Le guide reste interrogé en
-parallèle, ses moyennes glissantes alimentant la reconstruction d'historique.
+Pourquoi une médiane plutôt que la seule offre la moins chère : celle-ci rendrait
+le suivi nerveux. Une carte mal tarifée, un vendeur qui solde, et la valeur de la
+collection décroche pour la journée. La médiane des trois premières absorbe ce
+cas sans s'éloigner du prix auquel on achète réellement.
 
-L'état minimum, la langue et la taille de l'échantillon se règlent dans `.env`
-(`CARDMARKET_MIN_CONDITION`, `CARDMARKET_LANGUAGE_ID`, `CARDMARKET_ARTICLE_SAMPLE`).
-Si le service d'offres est indisponible, le relevé bascule sur le guide plutôt
-que d'être perdu.
+Le guide de prix de Cardmarket n'expose pas ce chiffre : il faut interroger les
+offres réelles (`/articles/:idProduct`), en écartant les lots, dont le prix
+affiché induirait en erreur. Comme rien ne garantit leur tri, on trie
+soi-même. Le guide reste interrogé en parallèle, ses moyennes glissantes
+alimentant la reconstruction d'historique.
+
+Tout cela se règle dans `.env` : état minimum (`CARDMARKET_MIN_CONDITION`),
+langue (`CARDMARKET_LANGUAGE_ID`), nombre d'offres récupérées
+(`CARDMARKET_ARTICLE_SAMPLE`) et nombre des moins chères prises en compte
+(`CARDMARKET_PRICE_SAMPLE`, ramener à 1 pour retenir la moins chère). Si le
+service d'offres est indisponible, le relevé bascule sur le guide plutôt que
+d'être perdu.
 
 ### L'historique
 
@@ -150,6 +158,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api` | Démarre le backend et ses tâches planifiées |
 | `npm run api:sync -- catalog` | Synchronise le catalogue |
 | `npm run api:probe` | Teste les sources de catalogue et décrit leurs réponses |
+| `npm run api:probe -- card OP01-001` | Affiche les enregistrements bruts d'une carte et de ses illustrations |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |

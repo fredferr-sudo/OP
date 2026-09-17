@@ -13,6 +13,7 @@
  * il dit en une fois laquelle des sources est tombée.
  */
 import { config } from '../config.ts';
+import { requestJson } from '../lib/http.ts';
 
 interface Candidate {
   source: string;
@@ -45,6 +46,7 @@ function candidates(): Candidate[] {
   for (const url of process.argv.slice(2)) {
     if (/^https?:\/\//.test(url)) list.unshift({ source: 'argument', url });
   }
+
 
   list.push({
     source: 'apitcg',
@@ -158,7 +160,53 @@ async function probe(candidate: Candidate): Promise<void> {
   }
 }
 
+/**
+ * Affiche les enregistrements bruts d'une carte et de ses illustrations.
+ *
+ * Sert à trancher les questions de classement : le champ `set` suit le numéro de
+ * la carte, tandis que `CardSets` nomme les produits où l'illustration a
+ * réellement été distribuée. Les comparer sur un cas concret évite d'inventer
+ * une règle.
+ */
+async function inspectCard(query: string): Promise<void> {
+  const payload = await requestJson<unknown>(config.catalog.dotggUrl, {
+    headers: { accept: 'application/json' },
+    timeoutMs: 60_000,
+  });
+  const list = (Array.isArray(payload) ? payload : ((payload as { data?: unknown[] }).data ?? [])) as Array<
+    Record<string, unknown>
+  >;
+
+  const needle = query.toUpperCase();
+  const matches = list.filter((card) => {
+    const id = String(card.id ?? '').toUpperCase();
+    const normal = String(card.id_normal ?? '').toUpperCase();
+    return id === needle || normal === needle || id.startsWith(`${needle}_`);
+  });
+
+  console.log(`\n${matches.length} enregistrement(s) pour « ${query} ».\n`);
+  for (const card of matches) {
+    console.log(`  id         : ${card.id}`);
+    console.log(`  id_normal  : ${card.id_normal}`);
+    console.log(`  name       : ${card.name}`);
+    console.log(`  rarity     : ${card.rarity}    cardType : ${card.cardType}`);
+    console.log(`  set        : ${card.set}`);
+    console.log(`  CardSets   : ${card.CardSets}`);
+    console.log(`  language   : ${card.language}`);
+    console.log('');
+  }
+}
+
 async function main(): Promise<void> {
+  // `npm run api:probe -- card OP01-001` inspecte une carte plutôt que sonder les
+  // sources. Le sous-commande est un mot simple : npm capterait un argument
+  // commençant par deux tirets avant qu'il n'arrive jusqu'ici.
+  const args = process.argv.slice(2);
+  if (args[0] === 'card') {
+    for (const query of args.slice(1)) await inspectCard(query);
+    return;
+  }
+
   console.log('\nSondage des sources de catalogue.\n');
   for (const candidate of candidates()) {
     await probe(candidate);
