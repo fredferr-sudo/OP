@@ -4,18 +4,23 @@
  *   npm run api:discover            # rapport seul
  *   npm run api:discover -- --write # écrit aussi le complément
  *
- * Les sources internationales ignorent les exclusivités régionales. Cardmarket,
- * lui, est une place de marché européenne : son catalogue contient forcément ce
- * qui se vend en Europe, exclusivités françaises comprises. On énumère donc ses
- * produits One Piece, on les confronte au catalogue local, et ce qui manque est
- * écrit dans le complément — avec son identifiant produit, ce qui donne au
- * passage le prix sans aucun rapprochement approximatif.
+ * La source principale ignore certaines cartes — exclusivités régionales,
+ * raretés récentes. Cette commande confronte le catalogue local à toutes les
+ * sources secondaires configurées et rapporte, pour chacune, ce qu'elle
+ * apporterait de plus.
  *
- * Nécessite les jetons Cardmarket (compte > Account > API).
+ * Deux sources sont interrogées si elles sont disponibles :
+ *  - apitcg.com, dont la clé est gratuite et l'inscription ouverte ;
+ *  - Cardmarket, dont le catalogue européen contiendrait les exclusivités
+ *    françaises, mais dont les demandes d'accès API sont fermées à ce jour.
+ *
+ * Aucune n'étant garantie, la commande travaille avec ce qui répond et le dit.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { config } from '../config.ts';
 import { db, selectAll } from '../db/index.ts';
+import { ApiTcgProvider } from '../catalog/providers/apitcg.ts';
 import { supplementPath } from '../catalog/supplement.ts';
 import {
   cardmarketConfigured,
@@ -47,44 +52,48 @@ function extractCode(...candidates: Array<string | undefined>): string | null {
   return null;
 }
 
-async function main(): Promise<void> {
-  if (!cardmarketConfigured()) {
-    console.log(
-      '\nLes jetons Cardmarket manquent dans services/api/.env.\n' +
-        'Ils se créent depuis ton compte Cardmarket (Account > API) et sont gratuits.\n' +
-        "Sans eux, cette détection ne peut pas s'appuyer sur un catalogue européen.\n",
-    );
-    process.exit(1);
+interface Found {
+  code: string;
+  name: string;
+  setId: string;
+  setName: string;
+  cmid: number | null;
+  url: string | null;
+  rarity: string | null;
+  source: string;
+}
+
+/** apitcg.com : clé gratuite, inscription ouverte. */
+async function fromApiTcg(known: Set<string>): Promise<Found[]> {
+  const payload = await new ApiTcgProvider().fetchAll();
+  const found: Found[] = [];
+
+  for (const card of payload.cards) {
+    const code = card.code.toUpperCase();
+    if (!code || known.has(code)) continue;
+    known.add(code);
+    found.push({
+      code,
+      name: card.name,
+      setId: card.setId,
+      setName: card.setName,
+      cmid: null,
+      url: null,
+      rarity: card.rarity,
+      source: 'apitcg',
+    });
   }
+  return found;
+}
 
-  db();
-  const write = process.argv.slice(2).includes('--write');
-
-  // Ce que le catalogue local connaît déjà, par code imprimé.
-  const known = new Set(
-    selectAll<{ code: string }>('SELECT DISTINCT code FROM cards').map((row) =>
-      row.code.toUpperCase(),
-    ),
-  );
-  console.log(`\nCatalogue local : ${known.size} codes connus.`);
-
+async function fromCardmarket(known: Set<string>): Promise<Found[]> {
+  const found: Found[] = [];
   const gameId = await cardmarketGameId();
   const expansionPayload = await cardmarketGet<{ expansion?: Expansion[] }>(
     `/games/${gameId}/expansions`,
   );
   const expansions = expansionPayload.expansion ?? [];
-  console.log(`Cardmarket : ${expansions.length} extensions à parcourir.\n`);
-
-  const missing: Array<{
-    code: string;
-    name: string;
-    setId: string;
-    setName: string;
-    cmid: number;
-    url: string | null;
-    rarity: string | null;
-  }> = [];
-  let scanned = 0;
+  console.log(`  Cardmarket : ${expansions.length} extensions à parcourir.`);
 
   for (const expansion of expansions) {
     const setName = (expansion.enName ?? '').trim() || `Extension ${expansion.idExpansion}`;
@@ -101,18 +110,14 @@ async function main(): Promise<void> {
       continue;
     }
 
-    scanned += singles.length;
-    let newHere = 0;
-
     for (const single of singles) {
       const code = extractCode(single.number, single.enName);
       // Sans code lisible, on ne peut pas confronter la carte au catalogue :
-      // l'ajouter à l'aveugle créerait des doublons.
+      // un scellé ou un accessoire n'est pas une carte.
       if (!code || known.has(code)) continue;
 
       known.add(code);
-      newHere += 1;
-      missing.push({
+      found.push({
         code,
         name: (single.enName ?? code).trim(),
         setId,
@@ -120,23 +125,79 @@ async function main(): Promise<void> {
         cmid: single.idProduct,
         url: single.website ? `https://www.cardmarket.com${single.website}` : null,
         rarity: single.rarity ?? null,
+        source: 'cardmarket',
       });
     }
-
-    if (newHere > 0) console.log(`  + ${setName.padEnd(38)} ${newHere} carte(s) absente(s)`);
   }
 
-  console.log(`\n${scanned} produits parcourus · ${missing.length} carte(s) absente(s) du catalogue.`);
+  return found;
+}
+
+async function main(): Promise<void> {
+  db();
+  const write = process.argv.slice(2).includes('--write');
+
+  // Ce que le catalogue local connaît déjà, par code imprimé. L'ensemble grandit
+  // au fil des sources, pour qu'une carte trouvée deux fois ne soit comptée
+  // qu'une.
+  const known = new Set(
+    selectAll<{ code: string }>('SELECT DISTINCT code FROM cards').map((row) =>
+      row.code.toUpperCase(),
+    ),
+  );
+  console.log(`\nCatalogue local : ${known.size} codes connus.\n`);
+
+  const sources: Array<{ name: string; run: () => Promise<Found[]>; skip?: string }> = [
+    {
+      name: 'apitcg',
+      run: () => fromApiTcg(known),
+      skip: config.catalog.apitcgKey
+        ? undefined
+        : 'APITCG_KEY absente de .env — la clé est gratuite sur apitcg.com',
+    },
+    {
+      name: 'cardmarket',
+      run: () => fromCardmarket(known),
+      skip: cardmarketConfigured()
+        ? undefined
+        : "jetons absents de .env — Cardmarket n'accepte plus de demandes d'accès API",
+    },
+  ];
+
+  const missing: Found[] = [];
+  for (const source of sources) {
+    if (source.skip) {
+      console.log(`—  ${source.name} : ignorée (${source.skip})`);
+      continue;
+    }
+    try {
+      const found = await source.run();
+      missing.push(...found);
+      console.log(`OK ${source.name} : ${found.length} carte(s) que le catalogue ignore`);
+    } catch (error) {
+      console.log(
+        `KO ${source.name} : ${error instanceof Error ? error.message.split('\n')[0] : error}`,
+      );
+    }
+  }
+
+  console.log(`\n${missing.length} carte(s) absente(s) au total.`);
 
   if (missing.length === 0) {
-    console.log('Rien à ajouter : le catalogue couvre tout ce que Cardmarket vend.\n');
+    console.log(
+      'Rien à ajouter. Si tu sais des cartes manquantes, elles ne sont dans aucune\n' +
+        'des sources interrogées : décris-les dans le complément (voir le README).\n',
+    );
     return;
   }
 
-  for (const card of missing.slice(0, 20)) {
-    console.log(`  ${card.code.padEnd(14)} ${card.name.slice(0, 32).padEnd(34)} ${card.setName.slice(0, 28)}`);
+  for (const card of missing.slice(0, 25)) {
+    console.log(
+      `  ${card.code.padEnd(14)} ${card.name.slice(0, 30).padEnd(32)} ` +
+        `${card.setName.slice(0, 24).padEnd(26)} ${card.source}`,
+    );
   }
-  if (missing.length > 20) console.log(`  … et ${missing.length - 20} autres.`);
+  if (missing.length > 25) console.log(`  … et ${missing.length - 25} autres.`);
 
   if (!write) {
     console.log('\nRelance avec « -- --write » pour les écrire dans le complément.\n');
@@ -165,10 +226,11 @@ async function main(): Promise<void> {
       name: card.name,
       setId: card.setId,
       rarity: card.rarity,
-      cardmarketId: String(card.cmid),
-      cardmarketUrl: card.url,
-      // La langue n'est pas déductible : Cardmarket vend un produit, et c'est
-      // l'offre qui porte une langue. À corriger à la main si besoin.
+      // Renseigné seulement quand la source le fournit : un identifiant produit
+      // connu évite tout rapprochement par nom au moment de relever le prix.
+      ...(card.cmid ? { cardmarketId: String(card.cmid), cardmarketUrl: card.url } : {}),
+      // La langue n'est pas déductible d'un catalogue de vente : à corriger à la
+      // main si la carte est une exclusivité d'une autre langue.
     } as unknown as { id: string });
   }
 

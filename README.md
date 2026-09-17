@@ -88,6 +88,11 @@ autres continuent de fonctionner.
 
 Notes utiles avant de demander les accès :
 
+- **Cardmarket** n'accepte plus de demandes d'accès à son API (« we are not
+  accepting applications for API access at this time »). Le connecteur et son
+  prix de référence — médiane des trois premières offres Near Mint — restent en
+  place, inactifs jusqu'à réouverture. En attendant, les prix Cardmarket
+  affichés viennent de dotgg, qui n'en donne qu'un seul, sans distinction d'état.
 - **TCGplayer** a fermé les inscriptions publiques à son API ; l'accès passe
   aujourd'hui par leur programme partenaire.
 - **eBay** Browse API donne les **annonces en cours**. Les **ventes conclues**
@@ -239,13 +244,21 @@ ignore et corrige ce qu'elle donne de travers, sans jamais être écrasé par el
 `npm run api:find -- <terme>` sert à vérifier ce que le catalogue contient
 réellement — la recherche ignore les accents, donc « grevin » trouve « Grévin ».
 
-Le remplir à la main n'est pas une fatalité : `npm run api:discover` énumère le
-catalogue One Piece de **Cardmarket**, place de marché européenne qui vend donc
-les exclusivités régionales, le confronte au catalogue local et rapporte ce qui
-manque ; avec `-- --write`, il l'écrit directement dans le complément, identifiant
-produit Cardmarket inclus — ce qui donne au passage le prix de ces cartes sans
-rapprochement approximatif. Cela demande les jetons Cardmarket, gratuits depuis
-ton compte.
+Le remplir à la main n'est pas une fatalité : `npm run api:discover` confronte le
+catalogue local aux sources secondaires configurées et rapporte, pour chacune, ce
+qu'elle apporterait de plus ; avec `-- --write`, il l'écrit dans le complément en
+conservant ce qui s'y trouvait déjà.
+
+Deux sources sont interrogées si elles répondent. **apitcg.com** demande une clé
+gratuite, dont l'inscription est ouverte : c'est la piste à tenter en premier.
+**Cardmarket** serait la meilleure — son catalogue européen contient forcément
+les exclusivités régionales, et il fournirait au passage l'identifiant produit,
+donc le prix sans rapprochement approximatif — mais **les demandes d'accès à son
+API sont fermées** à ce jour (« we are not accepting applications for API access
+at this time »). Le connecteur est prêt pour le jour où elles rouvriront.
+
+Quand aucune source ne connaît une carte, il reste la saisie dans le complément :
+c'est le cas des exclusivités les plus confidentielles.
 
 ## Sources du catalogue
 
