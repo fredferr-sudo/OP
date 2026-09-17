@@ -159,6 +159,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:sync -- catalog` | Synchronise le catalogue |
 | `npm run api:probe` | Teste les sources de catalogue et décrit leurs réponses |
 | `npm run api:probe -- card OP01-001` | Affiche les enregistrements bruts d'une carte et de ses illustrations |
+| `npm run api:analyse` | Analyse le classement des cartes par produit sur tout le catalogue |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
