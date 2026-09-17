@@ -145,7 +145,9 @@ export class DotggProvider implements CatalogProvider {
         // Produits dérivés (pré-sorties, coffrets démo) dont le code ne figure pas
         // tel quel : un nom approchant reste préférable à un code brut à l'écran.
         entries.find(
-          (candidate) => candidate.code.startsWith(setId) || setId.startsWith(candidate.code),
+          (candidate) =>
+            candidate.code !== null &&
+            (candidate.code.startsWith(setId) || setId.startsWith(candidate.code)),
         ) ??
         entries[0];
       const setName = entry?.name ?? setId;

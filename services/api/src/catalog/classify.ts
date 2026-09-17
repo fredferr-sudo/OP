@@ -115,19 +115,40 @@ export function normalizeSetId(raw: string): string {
  * s'appuie uniquement sur les crochets, qui sont fiables : chaque code est
  * précédé de son nom.
  */
-export function parseCardSets(raw: string | null | undefined): Array<{ code: string; name: string }> {
+export interface CardSetEntry {
+  /** Absent pour les produits nommés sans code : promos, packs de tournoi. */
+  code: string | null;
+  name: string;
+}
+
+export function parseCardSets(raw: string | null | undefined): CardSetEntry[] {
   if (!raw) return [];
 
-  const entries: Array<{ code: string; name: string }> = [];
+  const entries: CardSetEntry[] = [];
   const pattern = /([^\[\]]*)\[([^\]]+)\]/g;
+  const trim = (value: string) => value.replace(/^[\s\-,;/|]+|[\s\-,;/|]+$/g, '').trim();
 
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(raw)) !== null) {
-    const name = match[1].replace(/^[\s\-,;/|]+|[\s\-,;/|]+$/g, '').trim();
     const code = match[2].replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    if (code) entries.push({ code, name });
+    if (code) entries.push({ code, name: trim(match[1]) });
   }
+
+  // Une bonne partie du catalogue — packs de tournoi, participations, promos —
+  // nomme son produit sans lui donner de code. Les ignorer revenait à reverser
+  // ces cartes dans l'extension de leur numéro, ce qui les rangeait au mauvais
+  // endroit et privait l'app de produits que le jeu distingue réellement.
+  if (entries.length === 0) {
+    const name = trim(raw);
+    if (name) entries.push({ code: null, name });
+  }
+
   return entries;
+}
+
+/** Clé de regroupement : le code quand il existe, sinon le nom du produit. */
+export function productKey(entry: CardSetEntry): string {
+  return entry.code ?? entry.name.toUpperCase();
 }
 
 /** Une chaîne contenant des kana ou des kanji : on préfère un nom latin quand il existe. */

@@ -13,7 +13,7 @@
  * classement fondé sur `CardSets`. Ce rapport répond à ces questions et montre
  * des exemples de chaque cas.
  */
-import { normalizeSetId, parseCardSets } from '../catalog/classify.ts';
+import { normalizeSetId, parseCardSets, productKey } from '../catalog/classify.ts';
 import { config } from '../config.ts';
 import { requestJson } from '../lib/http.ts';
 
@@ -24,6 +24,7 @@ interface Row {
   set?: string;
   CardSets?: string;
   language?: string;
+  cardType?: string;
 }
 
 // Le champ `set` passe par la même normalisation que le catalogue — identifiants
@@ -67,6 +68,55 @@ const EXPECTED: Array<{ code: string; name: string; count: number }> = [
   { code: 'PRB02', name: 'The Best Vol.2', count: 406 },
 ];
 
+
+/**
+ * Composition d'un produit sous la règle « code ou nom », restreinte à l'anglais.
+ *
+ * Quand l'effectif dépasse encore l'étalon, c'est cette ventilation qui dit
+ * pourquoi : un type de carte versé à tort, des illustrations alternatives
+ * comptées deux fois, ou des cartes d'une autre édition.
+ */
+function composition(rows: Row[], code: string): void {
+  const members = rows.filter((row) => {
+    if (String(row.language ?? '').trim().toLowerCase() !== 'en') return false;
+    const entries = parseCardSets(row.CardSets);
+    const keys = entries.length > 0
+      ? entries.map(productKey)
+      : [normalizeSetId(String(row.set ?? ''))];
+    return keys.includes(code);
+  });
+
+  console.log(`\nComposition de ${code} sous « code+nom / en » — ${members.length} cartes`);
+
+  const byType = new Map<string, number>();
+  const byPrefix = new Map<string, number>();
+  let alternates = 0;
+
+  for (const row of members) {
+    const type = String(row.cardType ?? '(vide)');
+    byType.set(type, (byType.get(type) ?? 0) + 1);
+
+    const id = String(row.id ?? '').toUpperCase();
+    const prefix = id.split('-')[0] || '(vide)';
+    byPrefix.set(prefix, (byPrefix.get(prefix) ?? 0) + 1);
+
+    if (id !== String(row.id_normal ?? id).toUpperCase()) alternates += 1;
+  }
+
+  line('illustrations alternatives', alternates);
+  line('illustrations de base', members.length - alternates);
+
+  const show = (label: string, map: Map<string, number>) => {
+    const parts = [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([key, count]) => `${key}=${count}`);
+    line(label, parts.join(', '));
+  };
+  show('par type de carte', byType);
+  show('par préfixe d\'identifiant', byPrefix);
+}
+
 type Assignment = Map<string, Set<string>>;
 
 function add(target: Assignment, setId: string, cardId: string): void {
@@ -89,6 +139,8 @@ function simulate(rows: Row[]): void {
   const bySetEn: Assignment = new Map();
   const byCardSets: Assignment = new Map();
   const byCardSetsEn: Assignment = new Map();
+  const byNamed: Assignment = new Map();
+  const byNamedEn: Assignment = new Map();
   let pairs = 0;
 
   for (const row of rows) {
@@ -101,11 +153,22 @@ function simulate(rows: Row[]): void {
     if (english) add(bySetEn, setId, id);
 
     const entries = parseCardSets(row.CardSets);
-    const codes = entries.length > 0 ? entries.map((entry) => entry.code) : [setId];
-    for (const code of codes) {
+
+    // Règle « code » : on ne retient que les produits portant un code entre
+    // crochets, comme avant.
+    const coded = entries.filter((entry) => entry.code !== null).map((entry) => entry.code as string);
+    for (const code of coded.length > 0 ? coded : [setId]) {
       add(byCardSets, code, id);
       if (english) add(byCardSetsEn, code, id);
       pairs += 1;
+    }
+
+    // Règle « code ou nom » : un produit nommé sans code compte aussi, ce qui
+    // rend les packs de tournoi et les promos à leur produit réel.
+    const keys = entries.length > 0 ? entries.map(productKey) : [setId];
+    for (const key of keys) {
+      add(byNamed, key, id);
+      if (english) add(byNamedEn, key, id);
     }
   }
 
@@ -117,22 +180,28 @@ function simulate(rows: Row[]): void {
 
   console.log('\nSimulation de classement — écart aux effectifs op.tcg (édition Global)');
   console.log(
-    `  ${'produit'.padEnd(8)}${'attendu'.padEnd(9)}${'set'.padEnd(8)}${'écart'.padEnd(8)}${'CardSets'.padEnd(10)}${'écart'.padEnd(8)}${'CardSets/en'}`,
+    `  ${'produit'.padEnd(8)}${'attendu'.padEnd(9)}${'set'.padEnd(10)}${'code/en'.padEnd(12)}${'code+nom/en'}`,
   );
   for (const target of EXPECTED) {
     const viaSet = size(bySet, target.code);
-    const viaCardSets = size(byCardSets, target.code);
     const viaCardSetsEn = size(byCardSetsEn, target.code);
+    const viaNamedEn = size(byNamedEn, target.code);
     console.log(
-      `  ${target.code.padEnd(8)}${String(target.count).padEnd(9)}${String(viaSet).padEnd(8)}` +
-        `${gap(viaSet, target.count).padEnd(8)}${String(viaCardSets).padEnd(10)}` +
-        `${gap(viaCardSets, target.count).padEnd(8)}${viaCardSetsEn} (${gap(viaCardSetsEn, target.count)})`,
+      `  ${target.code.padEnd(8)}${String(target.count).padEnd(9)}` +
+        `${`${viaSet} (${gap(viaSet, target.count)})`.padEnd(10)}` +
+        `${`${viaCardSetsEn} (${gap(viaCardSetsEn, target.count)})`.padEnd(12)}` +
+        `${viaNamedEn} (${gap(viaNamedEn, target.count)})`,
     );
   }
 
+  // Ce qui reste en trop dans un produit de référence : sa composition dit
+  // quelle catégorie de cartes la règle y verse à tort.
+  composition(rows, 'OP01');
+
   console.log('');
   line('produits — règle actuelle', bySet.size);
-  line('produits — règle CardSets', byCardSets.size);
+  line('produits — règle code', byCardSets.size);
+  line('produits — règle code+nom', byNamed.size);
   line('couples carte-produit — règle CardSets', pairs);
   line('cartes anglaises rattachées (CardSets)', [...byCardSetsEn.values()].reduce((n, s) => n + s.size, 0));
 
@@ -179,6 +248,7 @@ async function main(): Promise<void> {
 
   const setValues = new Set<string>();
   const cardSetCodes = new Set<string>();
+  let namedOnly = 0;
 
   const sampleAltOneDifferent: Row[] = [];
   const sampleAltManyWithSet: Row[] = [];
@@ -193,7 +263,7 @@ async function main(): Promise<void> {
     setValues.add(setId);
 
     const entries = parseCardSets(row.CardSets);
-    for (const entry of entries) cardSetCodes.add(entry.code);
+    for (const entry of entries) if (entry.code) cardSetCodes.add(entry.code);
 
     if (entries.length === 0) buckets.zero += 1;
     else if (entries.length === 1) buckets.one += 1;
@@ -201,6 +271,7 @@ async function main(): Promise<void> {
     else buckets.more += 1;
 
     const containsSet = entries.some((entry) => entry.code === setId);
+    if (entries.length > 0 && entries.every((entry) => entry.code === null)) namedOnly += 1;
     const isAlt = id.toUpperCase() !== normal.toUpperCase();
 
     if (entries.length === 0) {
@@ -261,6 +332,7 @@ async function main(): Promise<void> {
   line('valeurs distinctes du champ set', setValues.size);
   line('codes distincts dans CardSets', cardSetCodes.size);
   const unseen = [...cardSetCodes].filter((c) => !setValues.has(c)).sort();
+  line('produits nommés sans code', namedOnly);
   line('codes vus seulement dans CardSets', unseen.length);
   if (unseen.length > 0) line('lesquels', unseen.slice(0, 24).join(', '));
 
