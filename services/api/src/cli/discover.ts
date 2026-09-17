@@ -9,8 +9,11 @@
  * sources secondaires configurées et rapporte, pour chacune, ce qu'elle
  * apporterait de plus.
  *
- * Deux sources sont interrogées si elles sont disponibles :
+ * Trois sources sont interrogées si elles sont disponibles :
  *  - apitcg.com, dont la clé est gratuite et l'inscription ouverte ;
+ *  - TCGplayer, dont l'API officielle donne le catalogue complet de la
+ *    marketplace : c'est là que figurent les cartes qu'aucune liste d'éditeur
+ *    ne publie, puisqu'elle référence ce qui se vend et non ce qui est annoncé ;
  *  - Cardmarket, dont le catalogue européen contiendrait les exclusivités
  *    françaises, mais dont les demandes d'accès API sont fermées à ce jour.
  *
@@ -27,6 +30,7 @@ import {
   cardmarketGameId,
   cardmarketGet,
 } from '../prices/providers/cardmarket.ts';
+import { TcgPlayerProvider } from '../prices/providers/tcgplayer.ts';
 
 interface Expansion {
   idExpansion: number;
@@ -83,6 +87,46 @@ async function fromApiTcg(known: Set<string>): Promise<Found[]> {
       source: 'apitcg',
     });
   }
+  return found;
+}
+
+/**
+ * TCGplayer : catalogue complet, par l'API officielle.
+ *
+ * Une marketplace voit ce qu'aucune liste d'éditeur ne publie — prix de
+ * tournoi, promos d'événement, cartes distribuées en boutique — parce qu'elle
+ * référence ce qui se vend, pas ce qui est annoncé. TCGplayer ouvre cet
+ * inventaire à qui demande une clé, ce qui rend inutile d'aller le prendre
+ * ailleurs sans permission.
+ */
+async function fromTcgPlayer(known: Set<string>): Promise<Found[]> {
+  const provider = new TcgPlayerProvider();
+  const found: Found[] = [];
+  let seen = 0;
+
+  for await (const { product, group } of provider.walkCatalog()) {
+    seen += 1;
+
+    // Un produit scellé — display, deck, coffret — n'est pas une carte et n'a
+    // pas de numéro imprimé : l'absence de code suffit à l'écarter.
+    const number = product.extendedData?.find((field) => field.name === 'Number')?.value;
+    const code = extractCode(number, product.cleanName, product.name);
+    if (!code || known.has(code)) continue;
+
+    known.add(code);
+    found.push({
+      code,
+      name: product.cleanName ?? product.name,
+      setId: code.split('-')[0] ?? '?',
+      setName: group,
+      cmid: null,
+      url: product.url ?? null,
+      rarity: product.extendedData?.find((field) => field.name === 'Rarity')?.value ?? null,
+      source: 'tcgplayer',
+    });
+  }
+
+  console.log(`  TCGplayer : ${seen} produits parcourus.`);
   return found;
 }
 
@@ -154,6 +198,14 @@ async function main(): Promise<void> {
       skip: config.catalog.apitcgKey
         ? undefined
         : 'APITCG_KEY absente de .env — la clé est gratuite sur apitcg.com',
+    },
+    {
+      name: 'tcgplayer',
+      run: () => fromTcgPlayer(known),
+      skip:
+        config.tcgplayer.publicKey && config.tcgplayer.privateKey
+          ? undefined
+          : 'clés absentes de .env — le portail développeur TCGplayer les délivre gratuitement',
     },
     {
       name: 'cardmarket',

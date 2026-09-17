@@ -126,6 +126,33 @@ export class TcgPlayerProvider implements PriceProvider {
     return map;
   }
 
+  /**
+   * Parcourt tout le catalogue One Piece de TCGplayer, extension par extension.
+   *
+   * C'est l'équivalent légitime de ce qu'on irait chercher en aspirant les
+   * pages d'une marketplace : la même information — ce que le marché vend
+   * réellement, hors-liste compris — mais par l'API que l'éditeur du site
+   * publie et documente pour cet usage. Sert à repérer les cartes qu'aucune
+   * liste officielle ne mentionne : prix de tournoi, promos d'événement.
+   */
+  async *walkCatalog(): AsyncGenerator<{ product: TcgProduct; group: string }> {
+    const categoryId = await this.resolveCategoryId();
+    const groups = await this.resolveGroups();
+
+    for (const [name, groupId] of groups) {
+      let offset = 0;
+      for (;;) {
+        const payload = await this.get<TcgProduct>(
+          `/catalog/products?categoryId=${categoryId}&groupId=${groupId}` +
+            `&getExtendedFields=true&limit=100&offset=${offset}`,
+        );
+        for (const product of payload.results) yield { product, group: name };
+        if (payload.results.length < 100) break;
+        offset += 100;
+      }
+    }
+  }
+
   async findProduct(card: Card): Promise<ProductMatch | null> {
     const categoryId = await this.resolveCategoryId();
 

@@ -167,7 +167,7 @@ remplacés par les vraies mesures au fil des jours.
 | `npm run api:analyse` | Analyse le classement des cartes par produit sur tout le catalogue |
 | `npm run api:find -- grevin` | Cherche une carte dans le catalogue synchronisé |
 | `npm run api:gap` | Compare le catalogue aux listes officielles Bandai, dans les deux sens |
-| `npm run api:discover` | Détecte les cartes absentes en confrontant le catalogue à Cardmarket |
+| `npm run api:discover` | Détecte les cartes absentes via apitcg, TCGplayer et Cardmarket |
 | `npm run api:stats` | Rapport de couverture : prix, visuels, produits mal nommés |
 | `npm run api:sync -- prices --limit 200` | Relève les prix de 200 cartes |
 | `npm run mobile` | Démarre le bundler Expo |
