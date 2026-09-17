@@ -13,7 +13,7 @@
  * classement fondé sur `CardSets`. Ce rapport répond à ces questions et montre
  * des exemples de chaque cas.
  */
-import { normalizeSetId, parseCardSets, productKey } from '../catalog/classify.ts';
+import { normalizeSetId, parseCardSets, productKey, resolveProductId } from '../catalog/classify.ts';
 import { config } from '../config.ts';
 import { requestJson } from '../lib/http.ts';
 
@@ -79,14 +79,11 @@ const EXPECTED: Array<{ code: string; name: string; count: number }> = [
 function composition(rows: Row[], code: string): void {
   const members = rows.filter((row) => {
     if (String(row.language ?? '').trim().toLowerCase() !== 'en') return false;
-    const entries = parseCardSets(row.CardSets);
-    const keys = entries.length > 0
-      ? entries.map(productKey)
-      : [normalizeSetId(String(row.set ?? ''))];
-    return keys.includes(code);
+    const id = String(row.id_normal ?? row.id ?? '');
+    return resolveProductId(id, row.set, parseCardSets(row.CardSets)[0]) === code;
   });
 
-  console.log(`\nComposition de ${code} sous « code+nom / en » — ${members.length} cartes`);
+  console.log(`\nComposition de ${code} sous la règle retenue — ${members.length} cartes`);
 
   const byType = new Map<string, number>();
   const byPrefix = new Map<string, number>();
@@ -141,6 +138,8 @@ function simulate(rows: Row[]): void {
   const byCardSetsEn: Assignment = new Map();
   const byNamed: Assignment = new Map();
   const byNamedEn: Assignment = new Map();
+  const byRule: Assignment = new Map();
+  const byRuleEn: Assignment = new Map();
   let pairs = 0;
 
   for (const row of rows) {
@@ -170,6 +169,11 @@ function simulate(rows: Row[]): void {
       add(byNamed, key, id);
       if (english) add(byNamedEn, key, id);
     }
+
+    // Règle retenue, celle que le catalogue applique désormais.
+    const resolved = resolveProductId(String(row.id_normal ?? id), row.set, entries[0]);
+    add(byRule, resolved, id);
+    if (english) add(byRuleEn, resolved, id);
   }
 
   const size = (assignment: Assignment, code: string): number => assignment.get(code)?.size ?? 0;
@@ -180,17 +184,17 @@ function simulate(rows: Row[]): void {
 
   console.log('\nSimulation de classement — écart aux effectifs op.tcg (édition Global)');
   console.log(
-    `  ${'produit'.padEnd(8)}${'attendu'.padEnd(9)}${'set'.padEnd(10)}${'code/en'.padEnd(12)}${'code+nom/en'}`,
+    `  ${'produit'.padEnd(8)}${'attendu'.padEnd(9)}${'set'.padEnd(10)}${'code+nom/en'.padEnd(13)}${'RETENUE/en'}`,
   );
   for (const target of EXPECTED) {
     const viaSet = size(bySet, target.code);
-    const viaCardSetsEn = size(byCardSetsEn, target.code);
     const viaNamedEn = size(byNamedEn, target.code);
+    const viaRuleEn = size(byRuleEn, target.code);
     console.log(
       `  ${target.code.padEnd(8)}${String(target.count).padEnd(9)}` +
         `${`${viaSet} (${gap(viaSet, target.count)})`.padEnd(10)}` +
-        `${`${viaCardSetsEn} (${gap(viaCardSetsEn, target.count)})`.padEnd(12)}` +
-        `${viaNamedEn} (${gap(viaNamedEn, target.count)})`,
+        `${`${viaNamedEn} (${gap(viaNamedEn, target.count)})`.padEnd(13)}` +
+        `${viaRuleEn} (${gap(viaRuleEn, target.count)})`,
     );
   }
 
@@ -202,6 +206,7 @@ function simulate(rows: Row[]): void {
   line('produits — règle actuelle', bySet.size);
   line('produits — règle code', byCardSets.size);
   line('produits — règle code+nom', byNamed.size);
+  line('produits — règle retenue', byRule.size);
   line('couples carte-produit — règle CardSets', pairs);
   line('cartes anglaises rattachées (CardSets)', [...byCardSetsEn.values()].reduce((n, s) => n + s.size, 0));
 

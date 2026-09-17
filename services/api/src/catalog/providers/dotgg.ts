@@ -6,8 +6,8 @@ import {
   isJapanese,
   normalizeCategory,
   normalizeColors,
-  normalizeSetId,
   parseCardSets,
+  resolveProductId,
   parseNumber,
   splitList,
 } from '../classify.ts';
@@ -134,23 +134,14 @@ export class DotggProvider implements CatalogProvider {
       if (!id) continue;
 
       const idNormal = (raw.id_normal ?? id).trim().toUpperCase();
-      const setId = normalizeSetId((raw.set ?? '').trim() || idNormal.split('-')[0]);
 
-      // `CardSets` liste tous les produits où la carte figure ; seul celui dont le
-      // code correspond à son extension nomme cette extension. Prendre le premier
-      // venu attribuait à OP01 le nom d'une collection premium.
-      const entries = parseCardSets(raw.CardSets);
-      const entry =
-        entries.find((candidate) => candidate.code === setId) ??
-        // Produits dérivés (pré-sorties, coffrets démo) dont le code ne figure pas
-        // tel quel : un nom approchant reste préférable à un code brut à l'écran.
-        entries.find(
-          (candidate) =>
-            candidate.code !== null &&
-            (candidate.code.startsWith(setId) || setId.startsWith(candidate.code)),
-        ) ??
-        entries[0];
-      const setName = entry?.name ?? setId;
+      // La source n'associe jamais plus d'un produit à une carte : le premier
+      // élément est donc le seul. C'est lui qui dit d'où vient cette impression
+      // précise, là où le champ `set` ne fait que reprendre le numéro de la carte
+      // et rangeait les illustrations alternatives dans la mauvaise extension.
+      const entry = parseCardSets(raw.CardSets)[0];
+      const setId = resolveProductId(idNormal, raw.set, entry);
+      const setName = entry?.name || setId;
 
       if (!setNames.has(setId)) setOrder.push(setId);
       setNames.set(setId, betterName(setNames.get(setId), setName));

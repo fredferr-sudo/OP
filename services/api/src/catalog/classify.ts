@@ -151,6 +151,49 @@ export function productKey(entry: CardSetEntry): string {
   return entry.code ?? entry.name.toUpperCase();
 }
 
+/** Un code de produit réel : des lettres suivies d'un numéro (OP05, EB04, PRB01). */
+function isNumberedProduct(code: string): boolean {
+  return /^[A-Z]+\d+$/.test(code);
+}
+
+/**
+ * Produit auquel rattacher une carte.
+ *
+ * Trois sources se contredisent parfois, et cet ordre a été établi en comparant
+ * le résultat aux effectifs réels du jeu :
+ *
+ *  1. Le code du produit, quand la source en donne un — il l'emporte, car c'est
+ *     lui qui envoie une illustration alternative vers la collection premium
+ *     dont elle provient plutôt que vers l'extension de son numéro.
+ *  2. Un code combiné (« OP14EB04 ») désigne deux produits sortis ensemble :
+ *     le numéro de la carte tranche auquel des deux elle appartient.
+ *  3. Sans code, le champ `set` fait foi quand il porte un code numéroté, sinon
+ *     c'est le nom du produit — « P » regroupe toutes les promotions, et seul
+ *     le nom distingue un pack de tournoi d'un autre.
+ */
+export function resolveProductId(
+  cardId: string,
+  setField: string | null | undefined,
+  entry?: CardSetEntry,
+): string {
+  const fromCardId = (cardId.split('-')[0] ?? '').toUpperCase();
+  const setId = normalizeSetId(String(setField ?? ''));
+
+  if (entry?.code) {
+    const code = entry.code.toUpperCase();
+    const composite = /^([A-Z]+\d+)([A-Z]+\d+)$/.exec(code);
+    if (composite) {
+      return composite[1] === fromCardId || composite[2] === fromCardId
+        ? fromCardId
+        : composite[1];
+    }
+    return normalizeSetId(code);
+  }
+
+  if (isNumberedProduct(setId)) return setId;
+  return entry ? entry.name.toUpperCase() : setId;
+}
+
 /** Une chaîne contenant des kana ou des kanji : on préfère un nom latin quand il existe. */
 export function isJapanese(value: string): boolean {
   return /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/.test(value);
