@@ -1,4 +1,4 @@
-import { SET_KIND_LABELS, type CardSet } from '@op/shared';
+import { EDITION_LABELS, SET_KIND_LABELS, type CardLanguage, type CardSet } from '@op/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ErrorState, Loading } from '@/components/ui';
 import { MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
+import { useAvailableEditions, useEdition } from '@/hooks/use-edition';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchSets, type SetGroup } from '@/lib/api';
 
@@ -18,20 +19,29 @@ import { fetchSets, type SetGroup } from '@/lib/api';
 export default function CatalogScreen() {
   const theme = useTheme();
   const [openKind, setOpenKind] = useState<string | null>(null);
+  const { edition, setEdition, ready } = useEdition();
+  const editions = useAvailableEditions();
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['sets'],
-    queryFn: fetchSets,
+    queryKey: ['sets', edition],
+    queryFn: () => fetchSets(edition),
+    // On attend de savoir quelle édition l'utilisateur regardait : interroger
+    // le backend avant ferait charger le catalogue global puis le remplacerait.
+    enabled: ready,
   });
 
   const groups = useMemo(() => data?.groups ?? [], [data]);
 
-  if (isLoading) return <Loading label="Chargement du catalogue…" />;
+  if (!ready || isLoading) return <Loading label="Chargement du catalogue…" />;
   if (error) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
   return (
     <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView contentContainerStyle={styles.content}>
+        {editions.length > 1 && (
+          <EditionPicker options={editions} value={edition} onChange={setEdition} />
+        )}
+
         {groups.map((group) => (
           <GroupSection
             key={group.kind}
@@ -43,13 +53,60 @@ export default function CatalogScreen() {
 
         {groups.length === 0 && (
           <Text style={{ color: theme.textSecondary, padding: Spacing.lg }}>
-            Le catalogue est vide. Lance la synchronisation côté backend :
+            {edition === 'EN'
+              ? 'Le catalogue est vide. Lance la synchronisation côté backend :'
+              : `Aucune carte dans l'édition ${EDITION_LABELS[edition] ?? edition}. ` +
+                'Vérifie que les éditions régionales sont activées, puis resynchronise :'}
             {'\n'}
             <Text style={{ fontWeight: '700' }}>npm run api:sync -- catalog</Text>
           </Text>
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+/**
+ * Sélecteur d'édition, en tête du catalogue.
+ * Il précède la nature du produit parce qu'il en change le contenu : ce ne sont
+ * pas les mêmes cartes, ni les mêmes effectifs, ni les mêmes titres.
+ */
+function EditionPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: CardLanguage[];
+  value: CardLanguage;
+  onChange: (edition: CardLanguage) => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.editions, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      {options.map((option) => {
+        const active = option === value;
+        return (
+          <Pressable
+            key={option}
+            onPress={() => onChange(option)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            style={[
+              styles.edition,
+              active && { backgroundColor: theme.accent },
+            ]}>
+            <Text
+              style={[
+                styles.editionText,
+                { color: active ? '#ffffff' : theme.textSecondary },
+              ]}>
+              {EDITION_LABELS[option] ?? option}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -138,6 +195,23 @@ const styles = StyleSheet.create({
   },
   group: {
     gap: Spacing.sm,
+  },
+  editions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    padding: Spacing.xs,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  edition: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+  },
+  editionText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   groupHeader: {
     flexDirection: 'row',

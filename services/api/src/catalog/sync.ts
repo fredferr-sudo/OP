@@ -1,9 +1,11 @@
 import { config } from '../config.ts';
 import { nowIso, today, transaction } from '../db/index.ts';
 import {
+  ensureSet,
   finishSyncRun,
   insertSnapshot,
   saveMarketLink,
+  saveSetName,
   startSyncRun,
   upsertCard,
   upsertSet,
@@ -12,6 +14,7 @@ import { inferSetKind } from './classify.ts';
 import { ApiTcgProvider } from './providers/apitcg.ts';
 import { DotggProvider } from './providers/dotgg.ts';
 import { LocalProvider } from './providers/local.ts';
+import { extraLanguages, fetchPunkRecords, punkRecordsEnabled } from './providers/punkrecords.ts';
 import { loadSupplement, supplementPath } from './supplement.ts';
 import type { CatalogProvider } from './types.ts';
 
@@ -52,6 +55,10 @@ export interface CatalogSyncResult {
   quotes: number;
   /** Cartes ajoutées par le complément local. */
   supplemented: number;
+  /** Impressions ajoutées par édition : { FR: 2888, JP: 4987 }. */
+  printings: Partial<Record<string, number>>;
+  /** Renseigné quand les éditions supplémentaires ont échoué à elles seules. */
+  printingsError?: string;
   /** Renseigné quand les sources préférées ont échoué. */
   fellBackTo?: string;
   failures?: string[];
@@ -99,6 +106,31 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
       links.push(...(supplement.links ?? []));
     }
 
+    // Les éditions française et japonaise s'ajoutent au catalogue global, elles
+    // ne le remplacent pas : une même carte existe dans les trois, avec son
+    // texte et son visuel propres. Leur échec ne doit donc pas emporter la
+    // synchronisation — le catalogue global reste utilisable sans elles.
+    const setNames: Array<{ setId: string; language: string; name: string }> = [];
+    const extraSets: typeof sets = [];
+    let printings: Partial<Record<string, number>> = {};
+    let printingsError: string | undefined;
+
+    if (punkRecordsEnabled()) {
+      try {
+        const extra = await fetchPunkRecords();
+        // Les produits régionaux sont créés à part : ils ne doivent compléter la
+        // liste que lorsqu'ils y manquent, jamais renommer ceux qui y sont.
+        extraSets.push(...extra.sets);
+        cards.push(...extra.cards);
+        setNames.push(...extra.setNames);
+        printings = extra.byLanguage;
+      } catch (error) {
+        printingsError = `${extraLanguages().join('/')} : ${
+          error instanceof Error ? error.message.split('\n')[0] : String(error)
+        }`;
+      }
+    }
+
     transaction(() => {
       for (const set of sets) {
         upsertSet({
@@ -106,9 +138,16 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
           kind: set.kind ?? inferSetKind(set.id, set.name),
         });
       }
+      for (const set of extraSets) {
+        ensureSet({ ...set, kind: set.kind ?? inferSetKind(set.id, set.name) });
+      }
+      for (const entry of setNames) {
+        saveSetName(entry.setId, entry.language, entry.name);
+      }
       for (const card of cards) {
-        // Une extension peut apparaître via une carte sans être listée : on la crée au vol.
-        upsertSet({
+        // Un produit peut apparaître via une carte sans être listé : on le crée
+        // au vol, sans écraser celui que la liste a déjà décrit.
+        ensureSet({
           id: card.setId,
           name: card.setName,
           kind: inferSetKind(card.setId, card.setName),
@@ -160,11 +199,13 @@ export async function syncCatalog(provider?: CatalogProvider): Promise<CatalogSy
     finishSyncRun(runId, 'success', cards.length, failures.length, failures.join(' | '));
     return {
       provider: used.name,
-      sets: sets.length,
+      sets: sets.length + extraSets.length,
       cards: cards.length,
       links: links.length,
       quotes: quotes.length,
       supplemented: supplement?.cards.length ?? 0,
+      printings,
+      printingsError,
       fellBackTo: failures.length > 0 ? used.name : undefined,
       failures: failures.length > 0 ? failures : undefined,
     };

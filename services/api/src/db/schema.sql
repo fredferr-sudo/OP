@@ -52,6 +52,17 @@ CREATE VIRTUAL TABLE IF NOT EXISTS cards_fts USING fts5(
   tokenize = 'unicode61 remove_diacritics 2'
 );
 
+-- Nom d'un produit dans une édition donnée : Bandai traduit ses titres, et
+-- OP-11 s'appelle « A Fist of Divine Speed » en global, « Des poings vifs comme
+-- l'éclair » en France. Le produit reste unique ; seul son nom change.
+CREATE TABLE IF NOT EXISTS set_names (
+  set_id     TEXT NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+  language   TEXT NOT NULL,
+  name       TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (set_id, language)
+);
+
 -- Correspondance carte <-> produit chez une marketplace.
 -- C'est la pièce centrale : sans elle on ne sait pas quel produit interroger.
 CREATE TABLE IF NOT EXISTS market_links (

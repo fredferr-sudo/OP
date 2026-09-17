@@ -1,6 +1,7 @@
 import type { SQLInputValue } from 'node:sqlite';
 import type {
   Card,
+  CardLanguage,
   CardQuery,
   CardSet,
   CollectionItem,
@@ -78,7 +79,15 @@ const CARD_SELECT = `
 // Extensions
 // ---------------------------------------------------------------------------
 
-export function listSets(): CardSet[] {
+/**
+ * Produits du catalogue, éventuellement restreints à une édition.
+ *
+ * L'édition n'est pas un simple filtre d'affichage : elle décide des effectifs.
+ * OP01 compte 121 cartes en global et 0 en France, et annoncer le total toutes
+ * éditions confondues ferait afficher une progression de collection fausse.
+ * Un produit qu'une édition n'a jamais publié n'apparaît donc pas chez elle.
+ */
+export function listSets(language?: CardLanguage): CardSet[] {
   const rows = selectAll<{
     id: string;
     name: string;
@@ -88,24 +97,57 @@ export function listSets(): CardSet[] {
     image_url: string | null;
     card_count: number;
   }>(
-    `SELECT s.*, (SELECT COUNT(*) FROM cards c WHERE c.set_id = s.id) AS card_count
+    `SELECT s.*, (
+       SELECT COUNT(*) FROM cards c
+       WHERE c.set_id = s.id ${language ? 'AND c.language = @language' : ''}
+     ) AS card_count
      FROM sets s
+     ${language ? 'WHERE card_count > 0' : ''}
      ORDER BY
        CASE s.kind
          WHEN 'booster' THEN 0 WHEN 'starter' THEN 1 WHEN 'special' THEN 2
          WHEN 'promo' THEN 3 WHEN 'tournament' THEN 4 ELSE 5 END,
        COALESCE(s.release_date, '9999') DESC, s.id DESC`,
+    language ? { language } : {},
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    kind: row.kind as SetKind,
-    code: row.code,
-    releaseDate: row.release_date,
-    imageUrl: row.image_url,
-    cardCount: row.card_count,
-  }));
+  // Les titres traduits sont chargés d'un bloc : le catalogue tient en quelques
+  // dizaines de produits, une requête par produit n'aurait aucun intérêt.
+  const names = new Map<string, Partial<Record<CardLanguage, string>>>();
+  for (const row of selectAll<{ set_id: string; language: string; name: string }>(
+    'SELECT set_id, language, name FROM set_names',
+  )) {
+    const entry = names.get(row.set_id) ?? {};
+    entry[row.language as CardLanguage] = row.name;
+    names.set(row.set_id, entry);
+  }
+
+  return rows.map((row) => {
+    const localized = names.get(row.id);
+    return {
+      id: row.id,
+      // Dans une édition donnée, c'est son titre qui fait foi : « OP-11 » se
+      // nomme « Des poings vifs comme l'éclair » pour un joueur français.
+      name: (language && localized?.[language]) || row.name,
+      kind: row.kind as SetKind,
+      code: row.code,
+      releaseDate: row.release_date,
+      imageUrl: row.image_url,
+      cardCount: row.card_count,
+      names: localized,
+    };
+  });
+}
+
+/**
+ * Éditions présentes en base, de la plus fournie à la moins fournie.
+ * C'est cette liste qui alimente le sélecteur d'édition : il ne doit proposer
+ * que ce que la synchronisation a réellement rapporté.
+ */
+export function listEditions(): Array<{ language: CardLanguage; cardCount: number }> {
+  return selectAll<{ language: string; n: number }>(
+    'SELECT language, COUNT(*) AS n FROM cards GROUP BY language ORDER BY n DESC',
+  ).map((row) => ({ language: row.language as CardLanguage, cardCount: row.n }));
 }
 
 export function upsertSet(set: Omit<CardSet, 'cardCount'>): void {
@@ -128,6 +170,47 @@ export function upsertSet(set: Omit<CardSet, 'cardCount'>): void {
       imageUrl: set.imageUrl ?? null,
       updatedAt: nowIso(),
     },
+  );
+}
+
+/**
+ * Crée un produit s'il est inconnu, sans jamais toucher à celui qui existe.
+ *
+ * Les éditions régionales décrivent les mêmes produits sous leur propre titre.
+ * Les laisser passer par `upsertSet` reviendrait à ce que la dernière source
+ * écrite impose sa langue à tout le monde : OP11 s'appellerait « DES POINGS
+ * VIFS COMME L'ÉCLAIR » y compris dans l'édition globale. Le titre traduit va
+ * dans `set_names`, jamais dans la ligne du produit.
+ */
+export function ensureSet(set: Omit<CardSet, 'cardCount'>): void {
+  run(
+    `INSERT INTO sets (id, name, kind, code, release_date, image_url, updated_at)
+       VALUES (@id, @name, @kind, @code, @releaseDate, @imageUrl, @updatedAt)
+       ON CONFLICT(id) DO NOTHING`,
+    {
+      id: set.id,
+      name: set.name,
+      kind: set.kind,
+      code: set.code ?? null,
+      releaseDate: set.releaseDate ?? null,
+      imageUrl: set.imageUrl ?? null,
+      updatedAt: nowIso(),
+    },
+  );
+}
+
+/**
+ * Nom d'un produit dans une édition. Enregistré à part du produit lui-même :
+ * les deux sources décrivent le même OP11, et la dernière à écrire ne doit pas
+ * imposer sa langue à toutes les autres.
+ */
+export function saveSetName(setId: string, language: string, name: string): void {
+  run(
+    `INSERT INTO set_names (set_id, language, name, updated_at)
+       VALUES (@setId, @language, @name, @updatedAt)
+       ON CONFLICT(set_id, language) DO UPDATE SET
+         name = excluded.name, updated_at = excluded.updated_at`,
+    { setId, language, name, updatedAt: nowIso() },
   );
 }
 
@@ -219,7 +302,11 @@ export function queryCards(query: CardQuery): Paginated<Card> {
       c.id IN (SELECT id FROM cards_fts WHERE cards_fts MATCH @ftsQuery)
       OR c.code LIKE @likeQuery
     )`);
-    params.ftsQuery = `${query.search.replace(/["*]/g, ' ').trim()}*`;
+    // Le terme est mis entre guillemets : la syntaxe de recherche plein texte
+    // lit un tiret comme une négation, et « OP12-030 » — la façon la plus
+    // naturelle de chercher une carte — faisait échouer la requête entière.
+    const term = query.search.replace(/["*]/g, ' ').trim();
+    params.ftsQuery = `"${term}"*`;
     params.likeQuery = `%${query.search}%`;
   }
   if (query.setId) {

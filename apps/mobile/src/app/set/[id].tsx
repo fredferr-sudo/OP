@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { CardGrid } from '@/components/card-grid';
 import { Spacing } from '@/constants/theme';
+import { useEdition } from '@/hooks/use-edition';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchSets } from '@/lib/api';
 
@@ -12,14 +13,19 @@ export default function SetScreen() {
   const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { data } = useQuery({ queryKey: ['sets'], queryFn: fetchSets });
+  const { edition } = useEdition();
+
+  const { data } = useQuery({ queryKey: ['sets', edition], queryFn: () => fetchSets(edition) });
   const set = data?.sets.find((s) => s.id === id);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <Stack.Screen options={{ title: set?.name ?? id }} />
       <CardGrid
-        query={{ setId: id, sort: 'code', order: 'asc' }}
+        // Le produit est le même d'une édition à l'autre, ses cartes non : sans
+        // ce filtre, OP01 mêlerait ses impressions globales, françaises et
+        // japonaises dans une seule grille où chaque carte apparaîtrait trois fois.
+        query={{ setId: id, language: edition, sort: 'code', order: 'asc' }}
         header={
           <View style={styles.header}>
             <Text style={[styles.title, { color: theme.text }]}>{set?.name ?? id}</Text>

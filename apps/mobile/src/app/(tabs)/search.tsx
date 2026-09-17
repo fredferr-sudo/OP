@@ -10,6 +10,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { CardGrid } from '@/components/card-grid';
 import { MAX_CONTENT_WIDTH, Radius, Spacing } from '@/constants/theme';
+import { useEdition } from '@/hooks/use-edition';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchFacets } from '@/lib/api';
 
@@ -38,6 +39,7 @@ export default function SearchScreen() {
   const deferredSearch = useDeferredValue(search);
 
   const { data: facets } = useQuery({ queryKey: ['facets'], queryFn: fetchFacets });
+  const { edition } = useEdition();
 
   const query: CardQuery = useMemo(
     () => ({
@@ -46,10 +48,13 @@ export default function SearchScreen() {
       categories: categories.length ? categories : undefined,
       rarities: rarities.length ? rarities : undefined,
       baseArtOnly: baseArtOnly || undefined,
+      // La recherche reste dans l'édition choisie : chercher « Zoro » ne doit
+      // pas rendre trois fois la même carte parce qu'elle existe en trois langues.
+      language: edition,
       sort: 'code',
       order: 'asc',
     }),
-    [deferredSearch, colors, categories, rarities, baseArtOnly],
+    [deferredSearch, colors, categories, rarities, baseArtOnly, edition],
   );
 
   function toggle<T>(list: T[], value: T, setter: (next: T[]) => void): void {

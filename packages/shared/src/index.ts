@@ -33,6 +33,13 @@ export interface CardSet {
   releaseDate: string | null; // ISO YYYY-MM-DD
   cardCount: number;
   imageUrl: string | null;
+  /**
+   * Nom du produit dans les autres éditions. Bandai traduit ses titres — OP11
+   * s'appelle « A Fist of Divine Speed » en global et « Des poings vifs comme
+   * l'éclair » en France — et l'édition choisie doit décider du nom affiché,
+   * pas la source qui a écrit la ligne en dernier.
+   */
+  names?: Partial<Record<CardLanguage, string>>;
 }
 
 export interface Card {
@@ -199,4 +206,37 @@ export const COLOR_HEX: Record<CardColor, string> = {
   Purple: '#7b52b5',
   Black: '#3c3f47',
   Yellow: '#e0b422',
+};
+
+// ---------------------------------------------------------------------------
+// Identifiants d'impression
+// ---------------------------------------------------------------------------
+
+/**
+ * Une même carte est imprimée dans plusieurs éditions sous le même numéro :
+ * « OP02-001_p1 » désigne une carte globale, une carte française et une carte
+ * japonaise, aux textes et aux visuels différents. L'identifiant doit donc
+ * porter l'édition, sans quoi la troisième impression écrase les deux autres.
+ *
+ * L'anglais garde l'identifiant nu. C'est lui que les marketplaces indexent, et
+ * c'est sur lui que reposent les correspondances Cardmarket / TCGplayer et
+ * l'historique de prix déjà enregistrés : les suffixer n'apporterait rien et
+ * invaliderait tout l'existant.
+ */
+export function printingId(rawId: string, language: CardLanguage): string {
+  return language === 'EN' ? rawId : `${rawId}@${language}`;
+}
+
+/** Inverse de `printingId`. Un identifiant sans suffixe est une carte globale. */
+export function parsePrintingId(id: string): { rawId: string; language: CardLanguage } {
+  const at = id.lastIndexOf('@');
+  if (at < 0) return { rawId: id, language: 'EN' };
+  return { rawId: id.slice(0, at), language: id.slice(at + 1) as CardLanguage };
+}
+
+/** Libellés d'édition, tels qu'affichés dans le sélecteur du catalogue. */
+export const EDITION_LABELS: Partial<Record<CardLanguage, string>> = {
+  EN: 'Global',
+  FR: 'France',
+  JP: 'Japon',
 };

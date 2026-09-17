@@ -280,6 +280,49 @@ le code entre crochets correspond à l'extension de la carte, et les noms anglai
 canoniques d'optcgapi (ses deux endpoints de produits fonctionnent, contrairement
 à sa liste de cartes) l'emportent quand ils existent.
 
+### Éditions française et japonaise
+
+dotgg ne connaît que l'édition internationale : sur ses 5500 cartes, 5185 sont
+anglaises et aucune n'est française. Or le jeu ne se contente pas de traduire —
+la France a ses propres impressions, 179 illustrations que l'édition anglaise n'a
+jamais publiées, et le Japon 435.
+
+Ces deux éditions viennent donc d'ailleurs : **les listes de cartes officielles
+de Bandai**, celles publiées sur `fr.onepiece-cardgame.com` et sur
+`onepiece-cardgame.com`, reprises dans le dépôt versionné
+[punk-records](https://github.com/buhbbl/punk-records). Les textes, les raretés
+et les visuels sont donc ceux de l'éditeur. `CATALOG_PRINTINGS` décide de ce
+qu'on en prend ; vide, l'app s'en tient à l'édition globale.
+
+On ne télécharge pas les fichiers un par un — il y en a près de huit mille pour
+les deux éditions. Une copie locale est tenue à jour par `git` en clone partiel
+restreint aux éditions demandées : environ 45 Mo la première fois, puis seulement
+les cartes modifiées. Un échec ici n'interrompt pas la synchronisation : le
+catalogue global reste à jour sans ses éditions régionales.
+
+Trois conséquences dans le modèle de données :
+
+- **L'identifiant porte l'édition.** `OP02-001_p1` désigne la carte globale,
+  `OP02-001_p1@FR` la française, `OP02-001_p1@JP` la japonaise. L'anglais garde
+  l'identifiant nu : c'est lui que les marketplaces indexent, et c'est sur lui
+  que reposent les correspondances Cardmarket / TCGplayer déjà enregistrées.
+- **Le produit reste unique, son nom non.** OP11 est un seul produit, nommé
+  « A Fist of Divine Speed » en global et « Des poings vifs comme l'éclair » en
+  France. Les titres traduits vivent dans `set_names` ; la ligne du produit garde
+  le nom global, faute de quoi la dernière source synchronisée imposerait sa
+  langue à tout le monde.
+- **L'édition décide des effectifs.** OP01 compte 121 cartes en global et aucune
+  en France. Un produit qu'une édition n'a jamais publié n'apparaît pas chez
+  elle, et la progression de collection se calcule sur l'édition regardée.
+
+L'édition japonaise a un défaut connu : le dépôt livre sa liste de produits vide.
+Les cartes sont donc rattachées à leur produit en les rapprochant de l'édition
+anglaise — un paquet japonais et son équivalent anglais partagent l'essentiel de
+leurs numéros. La correspondance est franche pour 57 des 62 paquets ; les cinq
+autres sont promotionnels et le recouvrement maximal les désigne malgré tout
+correctement. En revanche les titres japonais manquent réellement : l'app affiche
+alors le nom global, plutôt que de faire passer un titre anglais pour japonais.
+
 Ce sont des APIs communautaires, sans contrat versionné : leurs adresses bougent.
 La synchronisation enchaîne donc les sources et termine sur le catalogue local
 plutôt que de laisser l'app vide — en disant explicitement ce qui a échoué et si

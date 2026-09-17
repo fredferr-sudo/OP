@@ -6,12 +6,18 @@ build/
 *.tsbuildinfo
 .env
 .env.local
-data/*.db
-data/images/
+# Données produites à l'exécution. Les motifs sont préfixés de « ** » : un motif
+# contenant une barre oblique est sinon ancré à la racine du dépôt, et ne
+# couvrait donc pas services/api/data/, le dossier que le backend utilise
+# réellement — la base et le cache d'images s'y trouvaient suivis par git.
+**/data/*.db
+**/data/*.db-journal
+**/data/*.db-wal
+**/data/*.db-shm
+**/data/images/
+# Copie locale des listes officielles Bandai : reconstruite par la synchro.
+**/data/sources/
 # Le complément est propre à chaque collection ; l'exemple, lui, est versionné.
-services/api/data/supplement.json
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
+**/data/supplement.json
 .DS_Store
 *.log

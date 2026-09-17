@@ -55,6 +55,19 @@ export function CardTile({ card, owned = 0, width }: Props) {
               </Text>
             </View>
           )}
+
+          {/*
+            Impression non globale : sans cette pastille, la ロロノア・ゾロ
+            japonaise et la Roronoa Zoro internationale du même numéro se
+            distinguent mal une fois côte à côte dans une recherche.
+          */}
+          {card.language !== 'EN' && (
+            <View style={[styles.langBadge, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.langText, { color: theme.textSecondary }]}>
+                {card.language}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.meta}>
@@ -113,6 +126,19 @@ const styles = StyleSheet.create({
   altText: {
     fontSize: 9,
     fontWeight: '700',
+  },
+  langBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  langText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   meta: {
     marginTop: Spacing.xs + 2,

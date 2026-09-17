@@ -34,6 +34,21 @@ async function main(): Promise<void> {
       console.log(`Complément local : ${result.supplemented} cartes ajoutées.`);
     }
 
+    const printings = Object.entries(result.printings).filter(([, n]) => n);
+    if (printings.length > 0) {
+      console.log(
+        `Éditions supplémentaires : ${printings.map(([l, n]) => `${l}=${n}`).join(', ')} ` +
+          '(listes officielles Bandai de chaque région).',
+      );
+    }
+    if (result.printingsError) {
+      console.log(
+        `\nÉditions supplémentaires indisponibles — ${result.printingsError}\n` +
+          "  Le catalogue global est à jour ; il manque seulement les impressions régionales.\n" +
+          '  Elles demandent `git` sur le PATH et un accès à github.com.',
+      );
+    }
+
     // Une bascule silencieuse serait trompeuse : sur le catalogue local, l'app
     // n'affiche qu'une douzaine de cartes de démonstration.
     if (result.failures) {

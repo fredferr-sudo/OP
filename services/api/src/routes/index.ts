@@ -15,6 +15,7 @@ import {
   getCardsByIds,
   latestQuotes,
   listCollection,
+  listEditions,
   listSets,
   priceHistory,
   queryCards,
@@ -58,8 +59,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Catalogue
   // -------------------------------------------------------------------------
 
-  app.get('/sets', async () => {
-    const sets = listSets();
+  app.get('/sets', async (request) => {
+    // L'édition pilote le catalogue entier : elle décide des produits listés,
+    // de leur nom et de leurs effectifs. Sans paramètre, tout est renvoyé.
+    const { language } = request.query as { language?: string };
+    const sets = listSets((language as CardQuery['language']) || undefined);
     // Renvoyé déjà regroupé : l'app affiche directement ses sections.
     const groups = new Map<SetKind, typeof sets>();
     for (const set of sets) {
@@ -74,6 +78,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/facets', async () => cardFacets());
+
+  /** Éditions réellement présentes en base, avec leurs effectifs. */
+  app.get('/editions', async () => ({ editions: listEditions() }));
 
   /**
    * Visuel d'une carte, servi par le backend plutôt que par le site de l'éditeur :

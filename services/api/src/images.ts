@@ -27,7 +27,9 @@ export interface CardImage {
 
 /** Les identifiants viennent de l'URL : on n'accepte que ce qui compose un nom de carte. */
 export function isSafeCardId(id: string): boolean {
-  return /^[A-Za-z0-9_-]{1,40}$/.test(id);
+  // Le « @ » sépare l'identifiant de l'édition (« OP02-001_p1@FR »). Il reste
+  // sans danger comme nom de fichier de cache, contrairement à « / » ou « .. ».
+  return /^[A-Za-z0-9_@-]{1,40}$/.test(id);
 }
 
 function cachePath(cardId: string): string {

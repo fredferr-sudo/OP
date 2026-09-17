@@ -6,6 +6,17 @@ function str(key: string, fallback = ''): string {
   return value === undefined || value === '' ? fallback : value;
 }
 
+/**
+ * Comme `str`, mais une valeur vide reste une valeur.
+ *
+ * `str` traite « vide » comme « absent » et rend sa valeur par défaut, ce qui
+ * convient à une clé d'API mais pas à une liste : `CATALOG_PRINTINGS=` veut dire
+ * « aucune édition régionale », et se voyait répondre « FR,JP ».
+ */
+function list(key: string, fallback: string): string {
+  return process.env[key] ?? fallback;
+}
+
 function bool(key: string, fallback: boolean): boolean {
   const value = process.env[key];
   if (value === undefined || value === '') return fallback;
@@ -37,6 +48,18 @@ export const config = {
     // Cartes que les sources internationales ignorent : exclusivités régionales,
     // promos d'événements. Fusionné après elles, donc jamais écrasé.
     supplementPath: resolve(process.cwd(), str('SUPPLEMENT_PATH', './data/supplement.json')),
+
+    // Éditions ajoutées au catalogue global, au-delà de l'anglais. Les listes
+    // viennent des sites officiels Bandai de chaque région, via la copie
+    // versionnée « punk-records ». Vide = catalogue global seul.
+    printings: list('CATALOG_PRINTINGS', 'FR,JP'),
+    punkRecordsUrl: str('PUNK_RECORDS_URL', 'https://github.com/buhbbl/punk-records.git'),
+    // Copie locale du dépôt : conservée entre deux synchronisations, pour ne
+    // retélécharger que les cartes modifiées.
+    punkRecordsDir: resolve(
+      process.cwd(),
+      str('PUNK_RECORDS_DIR', './data/sources/punk-records'),
+    ),
   },
 
   cardmarket: {

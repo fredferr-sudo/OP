@@ -1,5 +1,6 @@
 import type {
   Card,
+  CardLanguage,
   CardQuery,
   CardSet,
   CollectionItem,
@@ -94,8 +95,20 @@ export interface SetGroup {
   sets: CardSet[];
 }
 
-export function fetchSets(): Promise<{ sets: CardSet[]; groups: SetGroup[] }> {
-  return get('/sets', { cacheKey: 'sets' });
+export function fetchSets(
+  language?: CardLanguage,
+): Promise<{ sets: CardSet[]; groups: SetGroup[] }> {
+  // L'édition fait partie de la clé de cache : les produits, leurs noms et
+  // leurs effectifs en dépendent, et resservir ceux d'une autre édition hors
+  // ligne afficherait un catalogue faux plutôt qu'un catalogue ancien.
+  const qs = language ? `?language=${language}` : '';
+  return get(`/sets${qs}`, { cacheKey: `sets${qs}` });
+}
+
+export function fetchEditions(): Promise<{
+  editions: Array<{ language: CardLanguage; cardCount: number }>;
+}> {
+  return get('/editions', { cacheKey: 'editions' });
 }
 
 export function fetchFacets(): Promise<{
