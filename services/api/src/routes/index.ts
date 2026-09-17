@@ -6,6 +6,7 @@ import type {
 } from '@op/shared';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { syncCatalog } from '../catalog/sync.ts';
+import { nowIso } from '../db/index.ts';
 import { isSafeCardId, loadCardImage } from '../images.ts';
 import {
   cardFacets,
@@ -115,6 +116,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       powerMin: parseNumber(q.powerMin),
       powerMax: parseNumber(q.powerMax),
       language: (q.language as CardQuery['language']) || undefined,
+      since: q.since || undefined,
       baseArtOnly: q.baseArtOnly === 'true',
       sort: (q.sort as CardQuery['sort']) || undefined,
       order: (q.order as CardQuery['order']) || undefined,
@@ -122,7 +124,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       offset: parseNumber(q.offset),
     };
     const page = queryCards(query);
-    return { ...page, items: withImageProxy(page.items, request) };
+    // La date du serveur accompagne la réponse : c'est elle que l'appareil
+    // garde en repère pour son prochain « ce qui a changé depuis ». Se fier à
+    // sa propre horloge lui ferait rater ou redemander des cartes.
+    return { ...page, items: withImageProxy(page.items, request), serverTime: nowIso() };
   });
 
   app.get('/cards/:id', async (request, reply) => {

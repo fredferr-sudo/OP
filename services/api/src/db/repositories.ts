@@ -160,7 +160,12 @@ export function upsertSet(set: Omit<CardSet, 'cardCount'>): void {
          code = excluded.code,
          release_date = COALESCE(excluded.release_date, sets.release_date),
          image_url = COALESCE(excluded.image_url, sets.image_url),
-         updated_at = excluded.updated_at`,
+         updated_at = excluded.updated_at
+       WHERE sets.name IS NOT excluded.name
+          OR sets.kind IS NOT excluded.kind
+          OR sets.code IS NOT excluded.code
+          OR sets.release_date IS NOT COALESCE(excluded.release_date, sets.release_date)
+          OR sets.image_url IS NOT COALESCE(excluded.image_url, sets.image_url)`,
     {
       id: set.id,
       name: set.name,
@@ -243,7 +248,14 @@ export function upsertCard(card: Omit<Card, 'setName' | 'setKind' | 'updatedAt'>
     updatedAt: nowIso(),
   };
 
-  run(
+  // La clause `WHERE` est ce qui rend la synchronisation incrémentale possible.
+  // Sans elle, une carte identique était réécrite à chaque passage et sa date de
+  // modification repoussée : le catalogue entier paraissait avoir changé toutes
+  // les semaines, et une application qui ne demande que les nouveautés aurait
+  // tout retéléchargé à chaque fois. `IS NOT` et non `<>`, parce qu'en SQL une
+  // comparaison avec NULL ne rend ni vrai ni faux — la moitié des colonnes
+  // d'une carte sont nulles.
+  const { changes } = run(
     `INSERT INTO cards (
          id, code, name, set_id, category, rarity, colors, cost, power, counter, life,
          attributes, types, effect, trigger, image_url, art_variant, language, updated_at
@@ -259,9 +271,31 @@ export function upsertCard(card: Omit<Card, 'setName' | 'setKind' | 'updatedAt'>
          effect = excluded.effect, trigger = excluded.trigger,
          image_url = COALESCE(excluded.image_url, cards.image_url),
          art_variant = excluded.art_variant, language = excluded.language,
-         updated_at = excluded.updated_at`,
+         updated_at = excluded.updated_at
+       WHERE cards.code IS NOT excluded.code
+          OR cards.name IS NOT excluded.name
+          OR cards.set_id IS NOT excluded.set_id
+          OR cards.category IS NOT excluded.category
+          OR cards.rarity IS NOT excluded.rarity
+          OR cards.colors IS NOT excluded.colors
+          OR cards.cost IS NOT excluded.cost
+          OR cards.power IS NOT excluded.power
+          OR cards.counter IS NOT excluded.counter
+          OR cards.life IS NOT excluded.life
+          OR cards.attributes IS NOT excluded.attributes
+          OR cards.types IS NOT excluded.types
+          OR cards.effect IS NOT excluded.effect
+          OR cards.trigger IS NOT excluded.trigger
+          OR cards.image_url IS NOT COALESCE(excluded.image_url, cards.image_url)
+          OR cards.art_variant IS NOT excluded.art_variant
+          OR cards.language IS NOT excluded.language`,
     payload,
   );
+
+  // Rien n'a bougé : ni la date de modification, ni l'index plein texte. Sur un
+  // catalogue de huit mille cartes, c'est seize mille écritures évitées par
+  // synchronisation.
+  if (changes === 0) return;
 
   // L'index FTS est maintenu à la main (fts5 externe non contentless pour rester simple).
   run('DELETE FROM cards_fts WHERE id = ?', [card.id]);
@@ -320,6 +354,10 @@ export function queryCards(query: CardQuery): Paginated<Card> {
   if (query.language) {
     where.push('c.language = @language');
     params.language = query.language;
+  }
+  if (query.since) {
+    where.push('c.updated_at > @since');
+    params.since = query.since;
   }
   if (query.baseArtOnly) {
     where.push('c.art_variant = 0');

@@ -374,6 +374,31 @@ le résultat n'est que la démonstration. `npm run api:probe` interroge chaque
 source et décrit ce qu'elle renvoie réellement, visuels des cartes compris :
 c'est l'outil à lancer quand une synchronisation se dégrade.
 
+## Mettre le contenu à jour sans tout retélécharger
+
+Une copie hors ligne ne vaut que si sa mise à jour est indolore. Deux mécanismes
+le garantissent.
+
+**Une carte inchangée n'est pas réécrite.** L'insertion porte une clause `WHERE`
+qui compare champ à champ : à données identiques, rien n'est touché, et la date
+de modification ne bouge pas. Sans elle, une resynchronisation hebdomadaire
+marquait les huit mille cartes comme modifiées, et un appareil qui ne demande
+que les nouveautés aurait tout retéléchargé chaque semaine. La comparaison
+utilise `IS NOT` et non `<>` : en SQL, comparer à NULL ne rend ni vrai ni faux,
+et la moitié des colonnes d'une carte sont nulles.
+
+**L'appareil ne demande que ce qui a bougé.** `GET /cards?since=<date>` ne rend
+que les cartes modifiées depuis, et la réponse porte l'heure du serveur, que
+l'appareil garde comme repère pour la fois suivante — se fier à sa propre
+horloge lui ferait rater ou redemander des cartes. En pratique : premier
+téléchargement complet, puis une extension qui sort ne coûte que ses ~160
+cartes. Les visuels ne bougent jamais pour un identifiant donné, et sont servis
+en `immutable` : ils ne se retéléchargent pas du tout.
+
+Limite connue : une carte retirée en amont reste en base. Le catalogue ne fait
+que croître, donc le cas ne s'est pas présenté ; il faudrait un marquage de
+suppression pour le traiter proprement.
+
 ## Ce qui reste à faire
 
 - Scanner une carte par l'appareil photo pour l'ajouter à la collection.

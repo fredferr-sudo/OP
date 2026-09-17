@@ -175,6 +175,12 @@ export interface CardQuery {
   powerMin?: number;
   powerMax?: number;
   language?: CardLanguage;
+  /**
+   * Ne rend que les cartes modifiées depuis cette date (ISO).
+   * C'est ce qui rend une copie hors ligne tenable : après le premier
+   * téléchargement, l'appareil ne redemande que ce qui a bougé.
+   */
+  since?: string;
   /** Regroupe les illustrations alternatives sous la carte de base. */
   baseArtOnly?: boolean;
   sort?: 'code' | 'name' | 'cost' | 'power' | 'price';
