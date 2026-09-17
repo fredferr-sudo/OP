@@ -19,5 +19,7 @@ build/
 **/data/sources/
 # Le complément est propre à chaque collection ; l'exemple, lui, est versionné.
 **/data/supplement.json
+# Trouvailles de la découverte automatique : reconstruites à chaque synchro.
+**/data/discovered.json
 .DS_Store
 *.log

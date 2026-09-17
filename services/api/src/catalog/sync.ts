@@ -15,6 +15,7 @@ import { ApiTcgProvider } from './providers/apitcg.ts';
 import { DotggProvider } from './providers/dotgg.ts';
 import { LocalProvider } from './providers/local.ts';
 import { extraLanguages, fetchPunkRecords, punkRecordsEnabled } from './providers/punkrecords.ts';
+import { discoverOffList, loadOffList, offListEnabled, saveOffList } from './offlist.ts';
 import { loadSupplement, supplementPath } from './supplement.ts';
 import type { CatalogProvider } from './types.ts';
 
@@ -55,6 +56,8 @@ export interface CatalogSyncResult {
   quotes: number;
   /** Cartes ajoutées par le complément local. */
   supplemented: number;
+  /** Tirages hors-liste repérés dans les annonces à ce passage. */
+  offList: number;
   /** Impressions ajoutées par édition : { FR: 2888, JP: 4987 }. */
   printings: Partial<Record<string, number>>;
   /** Renseigné quand les éditions supplémentaires ont échoué à elles seules. */
@@ -148,6 +151,33 @@ export async function syncCatalog(options: CatalogSyncOptions = {}): Promise<Cat
       }
     }
 
+    // Les cartes hors-liste sont cherchées dans les annonces avant d'être
+    // fusionnées : elles n'existent nulle part ailleurs, et rien ne dit qu'une
+    // promo sortie cette semaine figurait déjà au passage précédent.
+    let offList = 0;
+    if (offListEnabled()) {
+      try {
+        onProgress('Cartes hors-liste : lecture des annonces eBay…');
+        const knownIds = new Set(cards.map((card) => card.id.toUpperCase()));
+        const knownCodes = new Set(cards.map((card) => card.code.toUpperCase()));
+        const found = await discoverOffList(knownIds, knownCodes, onProgress);
+        if (found.length > 0) saveOffList(found);
+        offList = found.length;
+      } catch (error) {
+        onProgress(
+          `Cartes hors-liste : ${error instanceof Error ? error.message.split('\n')[0] : error}`,
+        );
+      }
+    }
+
+    const discovered = loadOffList();
+    if (discovered) {
+      sets.push(...discovered.sets);
+      cards.push(...discovered.cards);
+      links.push(...(discovered.links ?? []));
+    }
+
+
     onProgress(`Écriture en base : ${cards.length} cartes…`);
 
     transaction(() => {
@@ -223,6 +253,7 @@ export async function syncCatalog(options: CatalogSyncOptions = {}): Promise<Cat
       links: links.length,
       quotes: quotes.length,
       supplemented: supplement?.cards.length ?? 0,
+      offList,
       printings,
       printingsError,
       fellBackTo: failures.length > 0 ? used.name : undefined,

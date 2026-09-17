@@ -41,6 +41,11 @@ async function main(): Promise<void> {
           '(listes officielles Bandai de chaque région).',
       );
     }
+    if (result.offList > 0) {
+      console.log(
+        `Cartes hors-liste : ${result.offList} tirage(s) repéré(s) dans les annonces eBay.`,
+      );
+    }
     if (result.printingsError) {
       console.log(
         `\nÉditions supplémentaires indisponibles — ${result.printingsError}\n` +

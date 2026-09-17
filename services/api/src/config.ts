@@ -60,6 +60,15 @@ export const config = {
       process.cwd(),
       str('PUNK_RECORDS_DIR', './data/sources/punk-records'),
     ),
+
+    // Découverte automatique des cartes qu'aucune liste ne publie — promos
+    // d'événement, prix de tournoi — par les annonces eBay. Demande les clés
+    // eBay ; sans elles l'option est sans effet.
+    offList: bool('CATALOG_OFFLIST', true),
+    // Nombre d'annonces distinctes exigé avant de retenir un tirage : un titre
+    // isolé et mal rédigé ne doit pas créer une carte.
+    offListMinListings: num('CATALOG_OFFLIST_MIN_LISTINGS', 3),
+    offListPath: resolve(process.cwd(), str('OFFLIST_PATH', './data/discovered.json')),
   },
 
   cardmarket: {

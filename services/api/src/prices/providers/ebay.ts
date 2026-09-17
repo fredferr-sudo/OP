@@ -75,6 +75,16 @@ export class EbayProvider implements PriceProvider {
     return this.token.value;
   }
 
+  /**
+   * Annonces brutes pour une requête. Exposé parce que la découverte des cartes
+   * hors-liste s'appuie dessus : une promo d'événement n'est référencée nulle
+   * part comme produit, mais elle se revend, donc elle existe dans les annonces.
+   */
+  async searchListings(query: string): Promise<Array<{ title: string; url: string | null }>> {
+    const items = await this.search(query);
+    return items.map((item) => ({ title: item.title, url: item.itemWebUrl ?? null }));
+  }
+
   private async search(query: string): Promise<EbayItemSummary[]> {
     const token = await this.accessToken();
     const params = new URLSearchParams({

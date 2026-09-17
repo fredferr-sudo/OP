@@ -266,11 +266,27 @@ française, où OP13-001 n'a que deux impressions, toutes deux dans le booster
 OP-13 : elle n'a jamais été vendue, donc elle n'est ni au catalogue de
 l'éditeur ni sur une fiche produit de marketplace.
 
-Une telle carte se cote quand même, parce qu'elle se revend. Le complément
-accepte donc, en plus d'un `cardmarketId`, une `ebayQuery` : eBay n'indexe pas
-de produit, c'est la recherche qui identifie la carte, et pour une promo
-d'événement c'est la seule cotation qui existe. `supplement.example.json`
-contient l'entrée complète de la carte Grévin, prête à adapter.
+Une telle carte se revend pourtant — c'est la seule trace qu'elle laisse, et
+donc le seul endroit où la chercher. La synchronisation interroge l'API
+officielle d'eBay sur les termes qui désignent ce genre de tirage (« Grevin »,
+« championship winner », « store battle »…), extrait de chaque titre le code
+imprimé, et retient les couples code + qualificatif qui reviennent sur assez
+d'annonces distinctes pour ne pas être un titre isolé mal rédigé. Trois
+garde-fous : le code doit désigner une carte réelle, les lots, tapis et cartes
+gradées sont écartés, et `CATALOG_OFFLIST_MIN_LISTINGS` fixe le nombre
+d'annonces exigé.
+
+Les trouvailles vont dans `data/discovered.json`, réécrit à chaque passage, et
+jamais dans `supplement.json` qui reste tenu à la main : ce qui est deviné doit
+rester distinguable de ce qui est su. Chaque carte arrive avec sa requête de
+cotation, donc elle est cotée dès le relevé suivant, sans rien saisir.
+
+On ne sait d'une telle carte que ce que son annonce en dit : son code, son
+tirage, son prix. Le reste — effet, puissance, couleur — est laissé vide plutôt
+qu'inventé. Pour compléter une carte précise, ou pour celles qu'aucune annonce
+ne mentionne, `supplement.json` accepte la saisie manuelle, avec les mêmes
+`cardmarketId` et `ebayQuery` ; `supplement.example.json` en contient une entrée
+complète.
 
 ### Savoir ce qui manque vraiment
 
