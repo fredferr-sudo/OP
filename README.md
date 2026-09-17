@@ -374,6 +374,34 @@ le résultat n'est que la démonstration. `npm run api:probe` interroge chaque
 source et décrit ce qu'elle renvoie réellement, visuels des cartes compris :
 c'est l'outil à lancer quand une synchronisation se dégrade.
 
+## Le suivi de prix Cardmarket
+
+C'est la fonction qui distingue l'app d'un simple catalogue, et elle ne demande
+**aucune clé**. Les cotations Cardmarket n'arrivent pas par l'API de Cardmarket
+— elle n'accepte plus de demandes d'accès — mais par la source du catalogue, qui
+les transporte avec chaque carte, en euros.
+
+Une seule condition : **le backend doit tourner une fois par jour**, parce qu'un
+historique se construit un point à la fois. Deux mécanismes s'en chargent :
+
+- une tâche planifiée à 4 h 15, réglable par `PRICE_CRON` ;
+- un **rattrapage au démarrage** : si la journée n'a pas encore son relevé, il
+  est pris immédiatement. Sans lui, un ordinateur éteint la nuit n'aurait jamais
+  déclenché la tâche de 4 h du matin, et l'historique se serait rempli de trous
+  sans que rien ne le signale.
+
+Le relevé quotidien prend les cotations de la source du catalogue d'abord —
+tout le catalogue en un appel, sans clé — puis les marketplaces à clé, carte par
+carte selon leur quota. Auparavant les cotations Cardmarket n'étaient écrites
+que par la synchronisation du catalogue, hebdomadaire : l'historique gagnait un
+point tous les sept jours.
+
+Une limite qu'aucun réglage ne contourne : la source ne donne que le prix du
+jour, pas les moyennes glissantes de Cardmarket. La reconstruction d'historique
+(`backfill.ts`) ne peut donc pas s'appliquer, et la courbe sur 30 jours part
+vide pour se remplir jour après jour. Au bout d'un mois de fonctionnement, elle
+est entièrement composée de relevés réels.
+
 ## Mettre le contenu à jour sans tout retélécharger
 
 Une copie hors ligne ne vaut que si sa mise à jour est indolore. Deux mécanismes

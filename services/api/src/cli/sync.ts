@@ -10,6 +10,7 @@ import { createCatalogProvider, syncCatalog } from '../catalog/sync.ts';
 import { config } from '../config.ts';
 import { db } from '../db/index.ts';
 import { HttpError } from '../lib/http.ts';
+import { syncCatalogQuotes } from '../prices/quotes.ts';
 import { configuredProviders, syncPrices } from '../prices/sync.ts';
 
 async function main(): Promise<void> {
@@ -69,11 +70,25 @@ async function main(): Promise<void> {
   }
 
   if (command === 'prices' || command === 'all') {
+    // Les cotations de la source du catalogue d'abord : tout le catalogue en un
+    // appel, sans clé, et c'est par là qu'arrive Cardmarket.
+    try {
+      const quotes = await syncCatalogQuotes();
+      console.log(
+        `Cotations ${quotes.provider} : ${quotes.inserted} relevés · ` +
+          Object.entries(quotes.byMarketplace).map(([m, n]) => `${m}=${n}`).join(', '),
+      );
+    } catch (error) {
+      console.log(
+        `Cotations du catalogue indisponibles : ${error instanceof Error ? error.message.split('\n')[0] : error}`,
+      );
+    }
+
     const sources = configuredProviders().map((p) => p.marketplace);
     if (sources.length === 0) {
       console.log(
-        'Aucune source de prix configurée. Renseigne les clés dans services/api/.env ' +
-          '(voir .env.example) pour activer Cardmarket / TCGplayer / eBay.',
+        'Marketplaces à clé : aucune configurée. TCGplayer et eBay ajoutent leurs\n' +
+          'propres cotations ; leurs clés sont gratuites (voir .env.example).',
       );
     } else {
       const result = await syncPrices({ limit });
