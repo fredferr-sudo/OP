@@ -135,6 +135,35 @@ function simulate(rows: Row[]): void {
   line('produits — règle CardSets', byCardSets.size);
   line('couples carte-produit — règle CardSets', pairs);
   line('cartes anglaises rattachées (CardSets)', [...byCardSetsEn.values()].reduce((n, s) => n + s.size, 0));
+
+  // L'étalon ne couvre qu'une quinzaine de produits sur la septantaine que
+  // compte le catalogue. Il suffit à choisir la règle, pas à garantir qu'elle
+  // ne dérange rien ailleurs : on liste donc ce qu'elle déplace vraiment.
+  const codes = new Set([...bySet.keys(), ...byCardSets.keys()]);
+  const movements: Array<{ code: string; before: number; after: number }> = [];
+  for (const code of codes) {
+    const before = size(bySet, code);
+    const after = size(byCardSets, code);
+    if (before !== after) movements.push({ code, before, after });
+  }
+  movements.sort((a, b) => Math.abs(b.after - b.before) - Math.abs(a.after - a.before));
+
+  console.log('\nCe que la nouvelle règle déplace');
+  line('produits dont l\'effectif change', movements.length);
+  for (const move of movements.slice(0, 14)) {
+    line(`  ${move.code}`, `${move.before} -> ${move.after} (${gap(move.after, move.before)})`);
+  }
+
+  // Deux signaux d'alarme : un produit qui perdrait toutes ses cartes, et un
+  // produit qui n'existerait que par la nouvelle règle.
+  const emptied = [...codes].filter((code) => size(bySet, code) > 0 && size(byCardSets, code) === 0);
+  const created = [...codes].filter((code) => size(bySet, code) === 0 && size(byCardSets, code) > 0);
+
+  console.log('');
+  line('produits vidés par la nouvelle règle', emptied.length);
+  if (emptied.length > 0) line('  lesquels', emptied.slice(0, 20).join(', '));
+  line('produits créés par la nouvelle règle', created.length);
+  if (created.length > 0) line('  lesquels', created.slice(0, 20).join(', '));
 }
 
 async function main(): Promise<void> {
