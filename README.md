@@ -418,6 +418,20 @@ jour, pas les moyennes glissantes de Cardmarket. La reconstruction d'historique
 vide pour se remplir jour après jour. Au bout d'un mois de fonctionnement, elle
 est entièrement composée de relevés réels.
 
+### Ce que coûte une impression régionale
+
+Les marketplaces ne tiennent **qu'une fiche par carte** : sur Cardmarket, la
+langue est un attribut des annonces, pas un produit distinct. L'identifiant
+produit rapporté par la source du catalogue est donc porté par l'impression
+internationale, et les impressions française et japonaise n'ont aucun relevé à
+leur nom — près de huit mille cartes affichaient un écran de prix vide.
+
+Une impression régionale est donc cotée sur la fiche internationale du même
+numéro, et l'app le dit : « Cote de la fiche internationale (OP01-001) ». Un
+prix approché et annoncé comme tel vaut mieux qu'un prix absent, et mieux encore
+qu'un prix qu'on croirait propre à l'édition regardée. La valeur de collection
+suit la même règle, sans quoi une collection française aurait été estimée à zéro.
+
 ## Mettre le contenu à jour sans tout retélécharger
 
 Une copie hors ligne ne vaut que si sa mise à jour est indolore. Deux mécanismes

@@ -128,15 +128,36 @@ export default function CardScreen() {
         {priceQuery.isLoading ? (
           <Loading />
         ) : (priceQuery.data?.quotes.length ?? 0) > 0 ? (
-          priceQuery.data!.quotes.map((quote, index) => (
-            <QuoteRow key={`${quote.marketplace}-${quote.foil}`} quote={quote} first={index === 0} />
-          ))
+          <>
+            {priceQuery.data!.quotes.map((quote, index) => (
+              <QuoteRow
+                key={`${quote.marketplace}-${quote.foil}`}
+                quote={quote}
+                first={index === 0}
+              />
+            ))}
+            {/*
+              Les marketplaces ne tiennent qu'une fiche par carte, la langue
+              n'étant qu'un attribut des annonces : une impression régionale est
+              donc cotée sur la fiche internationale. Le dire vaut mieux que de
+              laisser croire à une cote propre à l'édition regardée.
+            */}
+            {priceQuery.data!.pricedAs && (
+              <View style={[styles.pricedAs, { borderTopColor: theme.border }]}>
+                <Text style={{ color: theme.textMuted, fontSize: 12, lineHeight: 17 }}>
+                  Cote de la fiche internationale ({priceQuery.data!.pricedAs}) : les
+                  marketplaces ne référencent qu'un produit par carte, toutes langues
+                  confondues.
+                </Text>
+              </View>
+            )}
+          </>
         ) : (
           <View style={{ padding: Spacing.lg }}>
             <Text style={{ color: theme.textSecondary, lineHeight: 20 }}>
-              Aucun relevé pour cette carte. Les prix apparaissent après la première
-              synchronisation, une fois les clés Cardmarket / TCGplayer / eBay renseignées côté
-              backend.
+              Aucun relevé pour cette carte. Les prix Cardmarket et TCGplayer arrivent avec la
+              synchronisation du catalogue, sans clé : lance «&nbsp;npm run api:sync -- catalog&nbsp;»
+              puis laisse «&nbsp;npm run api&nbsp;» tourner une fois par jour.
             </Text>
           </View>
         )}
@@ -284,6 +305,11 @@ function Stat({ label, value }: { label: string; value: string | number | null }
 }
 
 const styles = StyleSheet.create({
+  pricedAs: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   content: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl * 2,

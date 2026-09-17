@@ -142,7 +142,13 @@ export function fetchCard(id: string): Promise<{ card: Card; variants: Card[] }>
 export function fetchPrices(
   id: string,
   days = 30,
-): Promise<{ cardId: string; quotes: PriceQuote[]; history: PriceHistory[] }> {
+): Promise<{
+  cardId: string;
+  quotes: PriceQuote[];
+  history: PriceHistory[];
+  /** Renseigné quand le prix provient d'une autre impression de la même carte. */
+  pricedAs?: string;
+}> {
   return get(`/cards/${encodeURIComponent(id)}/prices?days=${days}`, {
     cacheKey: `prices:${id}:${days}`,
   });

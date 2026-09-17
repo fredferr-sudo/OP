@@ -19,6 +19,7 @@ import {
   listEditions,
   listSets,
   priceHistory,
+  pricingId,
   queryCards,
   recentSyncRuns,
   replaceCollection,
@@ -156,10 +157,18 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const card = getCard(id);
     if (!card) return reply.code(404).send({ error: 'Carte inconnue' });
 
+    // Une impression régionale n'a pas de cote propre : les marketplaces ne
+    // tiennent qu'une fiche par carte. On sert alors celle de l'impression
+    // internationale, en disant laquelle — un prix dont on ignore la provenance
+    // vaut moins qu'un prix annoncé comme approché.
+    const priced = pricingId(id);
+
     return {
       cardId: id,
-      quotes: latestQuotes(id),
-      history: priceHistory(id, parseNumber(days) ?? 30),
+      quotes: latestQuotes(priced),
+      history: priceHistory(priced, parseNumber(days) ?? 30),
+      /** Renseigné seulement lorsque le prix vient d'une autre impression. */
+      pricedAs: priced === id ? undefined : priced,
     };
   });
 

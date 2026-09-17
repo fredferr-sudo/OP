@@ -548,6 +548,37 @@ export function insertSnapshot(input: SnapshotInput): void {
   );
 }
 
+/**
+ * Carte sur laquelle lire les prix d'une impression donnée.
+ *
+ * Les marketplaces cotent *une* carte, pas une impression par langue :
+ * Cardmarket n'a qu'une fiche produit pour OP01-001, et la langue n'y est
+ * qu'un attribut des annonces. L'identifiant produit rapporté par la source du
+ * catalogue est donc porté par la carte internationale, et les impressions
+ * française et japonaise n'ont, elles, aucun relevé — près de huit mille cartes
+ * affichaient un écran de prix vide.
+ *
+ * On retombe donc sur l'impression internationale du même numéro. La fonction
+ * rend l'identifiant réellement coté, pour que l'app puisse dire d'où vient le
+ * prix plutôt que de le faire passer pour celui de la carte regardée.
+ */
+export function pricingId(cardId: string): string {
+  const hasOwn = selectOne<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM price_snapshots WHERE card_id = @cardId',
+    { cardId },
+  );
+  if ((hasOwn?.n ?? 0) > 0) return cardId;
+
+  const at = cardId.lastIndexOf('@');
+  if (at < 0) return cardId;
+
+  const base = cardId.slice(0, at);
+  const exists = selectOne<{ n: number }>('SELECT COUNT(*) AS n FROM cards WHERE id = @base', {
+    base,
+  });
+  return (exists?.n ?? 0) > 0 ? base : cardId;
+}
+
 export function latestQuotes(cardId: string): PriceQuote[] {
   const rows = selectAll<Record<string, any>>(
     `SELECT * FROM price_snapshots p
@@ -705,16 +736,31 @@ export function collectionStats(marketplace: Marketplace): CollectionStats {
      FROM collection_items i`,
   ) ?? { distinct_cards: 0, total_cards: 0, invested: 0 };
 
+  // La jointure passe par l'impression réellement cotée : une carte française
+  // n'a pas de relevé à son nom, et la compter à zéro sous-évaluerait la
+  // collection sans rien signaler. `rtrim(..., '@FR')` ne conviendrait pas —
+  // c'est une découpe au dernier « @ » qu'il faut, et SQLite sait la faire.
   const valued = selectOne<{ value: number; currency: string | null }>(
-    `SELECT COALESCE(SUM(i.quantity * COALESCE(p.market, p.low, 0)), 0) AS value,
+    `WITH priced AS (
+       SELECT i.rowid AS item, i.quantity, i.foil,
+              CASE
+                WHEN EXISTS (SELECT 1 FROM price_snapshots x WHERE x.card_id = i.card_id)
+                  THEN i.card_id
+                WHEN instr(i.card_id, '@') > 0
+                  THEN substr(i.card_id, 1, instr(i.card_id, '@') - 1)
+                ELSE i.card_id
+              END AS card_id
+       FROM collection_items i
+     )
+     SELECT COALESCE(SUM(d.quantity * COALESCE(p.market, p.low, 0)), 0) AS value,
             MAX(p.currency) AS currency
-     FROM collection_items i
-     LEFT JOIN price_snapshots p ON p.card_id = i.card_id
+     FROM priced d
+     LEFT JOIN price_snapshots p ON p.card_id = d.card_id
        AND p.marketplace = @marketplace
-       AND p.foil = i.foil
+       AND p.foil = d.foil
        AND p.captured_on = (
          SELECT MAX(captured_on) FROM price_snapshots q
-         WHERE q.card_id = i.card_id AND q.marketplace = @marketplace AND q.foil = i.foil
+         WHERE q.card_id = d.card_id AND q.marketplace = @marketplace AND q.foil = d.foil
        )`,
     { marketplace },
   ) ?? { value: 0, currency: null };
